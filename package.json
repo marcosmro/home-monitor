@@ -1,0 +1,45 @@
+{
+  "name": "home-monitor",
+  "version": "0.1.0",
+  "description": "A calm, comprehensive desktop view of your Sector Alarm home",
+  "main": "./out/main/index.js",
+  "author": "Marcos Mart\u00ednez Romero",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "dev:web": "vite --config vite.web.config.ts --host 127.0.0.1",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "test:e2e": "playwright test",
+    "test:desktop": "npm run build && node scripts/desktop-smoke.mjs",
+    "pack:mac": "npm run build && electron-builder --mac --dir",
+    "format": "prettier --write src tests scripts *.ts *.json *.yml"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0",
+    "electron-vite": "6.0.0",
+    "prettier": "^3.9.10",
+    "typescript": "7.0.2",
+    "vite": "8.3.6",
+    "vitest": "4.1.12"
+  },
+  "overrides": {
+    "minimatch@>=7 <11.0.1": "^11.0.5"
+  }
+}

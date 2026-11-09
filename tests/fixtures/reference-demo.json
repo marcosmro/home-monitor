@@ -1,0 +1,1214 @@
+{
+  "version": 1,
+  "capturedAt": "2026-11-09T18:52:42.636Z",
+  "source": "bundled",
+  "panelList": [
+    {
+      "PanelId": "00012345",
+      "DisplayName": "Casa (demo)"
+    },
+    {
+      "PanelId": "00067890",
+      "DisplayName": "Apartamento playa (demo)"
+    },
+    {
+      "PanelId": "00099999",
+      "DisplayName": "Chalet (demo, API nueva)"
+    }
+  ],
+  "panels": {
+    "00012345": {
+      "panel": {
+        "PanelId": "00012345",
+        "DisplayName": "Casa (demo)",
+        "Capabilities": [
+          "Arm",
+          "PartialArm",
+          "Locks",
+          "Smartplugs",
+          "Temperatures",
+          "Cameras"
+        ],
+        "PanelCodeLength": 4,
+        "QuickArmEnabled": false,
+        "CanPartialArm": true,
+        "Locks": [
+          {
+            "Label": "Puerta principal",
+            "Serial": "L-001",
+            "SerialNo": "L-001"
+          },
+          {
+            "Label": "Puerta del garaje",
+            "Serial": "L-002",
+            "SerialNo": "L-002"
+          }
+        ],
+        "Temperatures": [
+          {
+            "Label": "Salón",
+            "SerialNo": "T-01",
+            "Serial": "T-01",
+            "Temperature": "21.4"
+          },
+          {
+            "Label": "Cocina",
+            "SerialNo": "T-02",
+            "Serial": "T-02",
+            "Temperature": "22.8"
+          },
+          {
+            "Label": "Dormitorio",
+            "SerialNo": "T-03",
+            "Serial": "T-03",
+            "Temperature": "19.6"
+          },
+          {
+            "Label": "Garaje",
+            "SerialNo": "T-04",
+            "Serial": "T-04",
+            "Temperature": "14.1"
+          }
+        ],
+        "Smartplugs": [
+          {
+            "Id": "1",
+            "Label": "Lámpara salón",
+            "Serial": "P-001",
+            "SerialNo": "P-001"
+          },
+          {
+            "Id": "2",
+            "Label": "Calefactor estudio",
+            "Serial": "P-002",
+            "SerialNo": "P-002"
+          },
+          {
+            "Id": "3",
+            "Label": "Luces jardín",
+            "Serial": "P-003",
+            "SerialNo": "P-003"
+          }
+        ]
+      },
+      "status": {
+        "IsOnline": true,
+        "Status": 1,
+        "StatusTime": "2026-11-09T18:40:42.636Z"
+      },
+      "locks": [
+        {
+          "Label": "Puerta principal",
+          "Serial": "L-001",
+          "SerialNo": "L-001",
+          "BatteryLow": false,
+          "Status": "lock",
+          "AutoLockEnabled": true
+        },
+        {
+          "Label": "Puerta del garaje",
+          "Serial": "L-002",
+          "SerialNo": "L-002",
+          "BatteryLow": true,
+          "Status": "unlock",
+          "AutoLockEnabled": false
+        }
+      ],
+      "smartplugs": [
+        {
+          "Id": "1",
+          "Label": "Lámpara salón",
+          "Serial": "P-001",
+          "SerialNo": "P-001",
+          "Status": "On"
+        },
+        {
+          "Id": "2",
+          "Label": "Calefactor estudio",
+          "Serial": "P-002",
+          "SerialNo": "P-002",
+          "Status": "Off"
+        },
+        {
+          "Id": "3",
+          "Label": "Luces jardín",
+          "Serial": "P-003",
+          "SerialNo": "P-003",
+          "Status": "Off"
+        }
+      ],
+      "doorsandwindows": {
+        "Floors": [
+          {
+            "Name": "Planta baja",
+            "Rooms": [
+              {
+                "Name": "Entrada",
+                "Devices": [
+                  {
+                    "Label": "Puerta principal",
+                    "Name": "Puerta principal",
+                    "SerialString": "D-01",
+                    "Type": 1,
+                    "LowBattery": false,
+                    "Closed": true
+                  }
+                ]
+              },
+              {
+                "Name": "Salón",
+                "Devices": [
+                  {
+                    "Label": "Puerta terraza",
+                    "Name": "Puerta terraza",
+                    "SerialString": "D-02",
+                    "Type": 1,
+                    "LowBattery": false,
+                    "Closed": false
+                  }
+                ]
+              },
+              {
+                "Name": "Cocina",
+                "Devices": [
+                  {
+                    "Label": "Ventana cocina",
+                    "Name": "Ventana cocina",
+                    "SerialString": "W-01",
+                    "Type": 2,
+                    "LowBattery": false,
+                    "Closed": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Name": "Primera planta",
+            "Rooms": [
+              {
+                "Name": "Dormitorio",
+                "Devices": [
+                  {
+                    "Label": "Ventana dormitorio",
+                    "Name": "Ventana dormitorio",
+                    "SerialString": "W-02",
+                    "Type": 2,
+                    "LowBattery": true,
+                    "Closed": true
+                  }
+                ]
+              },
+              {
+                "Name": "Estudio",
+                "Devices": [
+                  {
+                    "Label": "Ventana estudio",
+                    "Name": "Ventana estudio",
+                    "SerialString": "W-03",
+                    "Type": 2,
+                    "LowBattery": false,
+                    "Closed": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "temperatures": {
+        "Sections": [
+          {
+            "Name": "Planta baja",
+            "Places": [
+              {
+                "Name": "Salón",
+                "Components": [
+                  {
+                    "SerialNo": "T-01",
+                    "Label": "Salón",
+                    "Name": "Salón",
+                    "Type": "Temperature",
+                    "Temperature": 21.4
+                  }
+                ]
+              },
+              {
+                "Name": "Cocina",
+                "Components": [
+                  {
+                    "SerialNo": "T-02",
+                    "Label": "Cocina",
+                    "Name": "Cocina",
+                    "Type": "Temperature",
+                    "Temperature": 22.8
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Name": "Primera planta",
+            "Places": [
+              {
+                "Name": "Dormitorio",
+                "Components": [
+                  {
+                    "SerialNo": "T-03",
+                    "Label": "Dormitorio",
+                    "Name": "Dormitorio",
+                    "Type": "Temperature",
+                    "Temperature": 19.6
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Name": "Sótano",
+            "Places": [
+              {
+                "Name": "Garaje",
+                "Components": [
+                  {
+                    "SerialNo": "T-04",
+                    "Label": "Garaje",
+                    "Name": "Garaje",
+                    "Type": "Temperature",
+                    "Temperature": 14.1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "temperaturesLegacy": null,
+      "humidity": {
+        "Sections": [
+          {
+            "Name": "Planta baja",
+            "Places": [
+              {
+                "Name": "Salón",
+                "Components": [
+                  {
+                    "SerialNo": "T-01",
+                    "Label": "Salón",
+                    "Name": "Salón",
+                    "Humidity": 48
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Name": "Primera planta",
+            "Places": [
+              {
+                "Name": "Dormitorio",
+                "Components": [
+                  {
+                    "SerialNo": "T-03",
+                    "Label": "Dormitorio",
+                    "Name": "Dormitorio",
+                    "Humidity": 55
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Name": "Sótano",
+            "Places": [
+              {
+                "Name": "Garaje",
+                "Components": [
+                  {
+                    "SerialNo": "T-04",
+                    "Label": "Garaje",
+                    "Name": "Garaje",
+                    "Humidity": 71
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "leakagedetectors": {
+        "Floors": [
+          {
+            "Name": "Planta baja",
+            "Rooms": [
+              {
+                "Name": "Cocina",
+                "Devices": [
+                  {
+                    "Label": "Bajo fregadero",
+                    "Name": "Bajo fregadero",
+                    "SerialString": "K-01",
+                    "Alarm": false,
+                    "LowBattery": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Name": "Sótano",
+            "Rooms": [
+              {
+                "Name": "Lavadero",
+                "Devices": [
+                  {
+                    "Label": "Lavadora",
+                    "Name": "Lavadora",
+                    "SerialString": "K-02",
+                    "Alarm": false,
+                    "LowBattery": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "smokedetectors": {
+        "Floors": [
+          {
+            "Name": "Planta baja",
+            "Rooms": [
+              {
+                "Name": "Pasillo",
+                "Devices": [
+                  {
+                    "Label": "Pasillo",
+                    "Name": "Pasillo",
+                    "SerialString": "S-01",
+                    "Alarm": false,
+                    "LowBattery": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Name": "Primera planta",
+            "Rooms": [
+              {
+                "Name": "Rellano",
+                "Devices": [
+                  {
+                    "Label": "Rellano",
+                    "Name": "Rellano",
+                    "SerialString": "S-02",
+                    "Alarm": false,
+                    "LowBattery": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "cameras": {
+        "Floors": [
+          {
+            "Name": "Planta baja",
+            "Rooms": [
+              {
+                "Name": "Salón",
+                "Devices": [
+                  {
+                    "Label": "Salón",
+                    "SerialNo": "C-01"
+                  }
+                ]
+              },
+              {
+                "Name": "Entrada",
+                "Devices": [
+                  {
+                    "Label": "Entrada",
+                    "SerialNo": "C-02"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "logs": {
+        "Records": [
+          {
+            "Time": "2026-11-09T18:40:42.636Z",
+            "EventType": "disarmed",
+            "User": "Marcos",
+            "Channel": "App"
+          },
+          {
+            "Time": "2026-11-09T18:38:42.636Z",
+            "EventType": "unlock",
+            "User": "Marcos",
+            "Channel": "App",
+            "LockName": "Puerta principal"
+          },
+          {
+            "Time": "2026-11-09T09:52:42.636Z",
+            "EventType": "armed",
+            "User": "Marcos",
+            "Channel": "Keypad"
+          },
+          {
+            "Time": "2026-11-09T09:49:42.636Z",
+            "EventType": "lock",
+            "User": "Auto",
+            "Channel": "Autolock",
+            "LockName": "Puerta principal"
+          },
+          {
+            "Time": "2026-11-08T16:52:42.636Z",
+            "EventType": "partialarmed",
+            "User": "Lucía",
+            "Channel": "App"
+          },
+          {
+            "Time": "2026-11-08T11:52:42.636Z",
+            "EventType": "disarmed",
+            "User": "Lucía",
+            "Channel": "Tag"
+          },
+          {
+            "Time": "2026-11-07T16:52:42.636Z",
+            "EventType": "armed",
+            "User": "Marcos",
+            "Channel": "App"
+          },
+          {
+            "Time": "2026-11-07T16:50:42.636Z",
+            "EventType": "lock",
+            "User": "Marcos",
+            "Channel": "App",
+            "LockName": "Puerta del garaje"
+          },
+          {
+            "Time": "2026-11-06T18:52:42.636Z",
+            "EventType": "alarm",
+            "User": "Sistema",
+            "Channel": "Panel"
+          },
+          {
+            "Time": "2026-11-06T18:51:42.636Z",
+            "EventType": "disarmed",
+            "User": "Marcos",
+            "Channel": "App"
+          }
+        ]
+      },
+      "errors": {}
+    },
+    "00067890": {
+      "panel": {
+        "PanelId": "00067890",
+        "DisplayName": "Apartamento playa (demo)",
+        "Capabilities": [
+          "Arm",
+          "PartialArm"
+        ],
+        "PanelCodeLength": 4,
+        "QuickArmEnabled": true,
+        "CanPartialArm": true,
+        "Locks": [],
+        "Temperatures": [
+          {
+            "Label": "Salón",
+            "SerialNo": "T-91",
+            "Serial": "T-91",
+            "Temperature": "24.3"
+          }
+        ],
+        "Smartplugs": []
+      },
+      "status": {
+        "IsOnline": true,
+        "Status": 3,
+        "StatusTime": "2026-11-04T18:52:42.636Z"
+      },
+      "locks": [],
+      "smartplugs": [],
+      "doorsandwindows": {
+        "Floors": [
+          {
+            "Name": "Planta única",
+            "Rooms": [
+              {
+                "Name": "Entrada",
+                "Devices": [
+                  {
+                    "Label": "Puerta",
+                    "Name": "Puerta",
+                    "SerialString": "D-91",
+                    "Type": 1,
+                    "Closed": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "temperatures": null,
+      "temperaturesLegacy": [
+        {
+          "Label": "Salón",
+          "SerialNo": "T-91",
+          "Serial": "T-91",
+          "Temperature": "24.3"
+        }
+      ],
+      "humidity": null,
+      "leakagedetectors": null,
+      "smokedetectors": null,
+      "cameras": null,
+      "logs": {
+        "Records": [
+          {
+            "Time": "2026-11-04T18:52:42.636Z",
+            "EventType": "armed",
+            "User": "Marcos",
+            "Channel": "App"
+          }
+        ]
+      },
+      "errors": {}
+    },
+    "00099999": {
+      "panel": {
+        "PanelId": "00099999",
+        "DisplayName": "Chalet (demo, API nueva)",
+        "Vendor": "SAS",
+        "Capabilities": [
+          "ScheduledSmartPlugs"
+        ],
+        "PanelCodeLength": 4,
+        "QuickArmEnabled": false,
+        "CanPartialArm": true,
+        "HasHumidityReading": true,
+        "HasAnnex": false,
+        "InstallationAddress": "Calle del Olivo 12, Madrid",
+        "Locks": [
+          {
+            "Label": "Puerta principal",
+            "Serial": "L-901",
+            "SerialNo": "L-901"
+          }
+        ],
+        "Photos": [
+          {
+            "Id": "C-901",
+            "Label": "Garaje"
+          }
+        ],
+        "Smartplugs": [
+          {
+            "Id": "9",
+            "Label": "Lámpara porche",
+            "Serial": "P-901",
+            "SerialNo": "P-901"
+          }
+        ],
+        "Temperatures": [],
+        "Access": [
+          "Photos",
+          "Smartplugs",
+          "LockSettings"
+        ]
+      },
+      "status": {
+        "IsOnline": true,
+        "Status": 1,
+        "StatusTime": "2026-11-09T18:12:42.636Z"
+      },
+      "state": {
+        "isOnline": true,
+        "timeZoneName": "Europe/Madrid",
+        "areas": [
+          {
+            "id": 0,
+            "state": "Disarmed",
+            "stateLastChangedAtUtc": "2026-11-09T18:12:42.636Z",
+            "canPartialArm": true,
+            "translationKey": "AREA_1_KEY"
+          }
+        ]
+      },
+      "locks": [
+        {
+          "Label": "Puerta principal",
+          "Serial": "L-901",
+          "SerialNo": "L-901",
+          "BatteryLow": false,
+          "Status": "lock",
+          "AutoLockEnabled": true
+        }
+      ],
+      "smartplugs": [
+        {
+          "Id": "9",
+          "Label": "Lámpara porche",
+          "Serial": "P-901",
+          "SerialNo": "P-901",
+          "Status": "Off"
+        }
+      ],
+      "doorsandwindows": null,
+      "temperatures": null,
+      "temperaturesLegacy": null,
+      "humidity": null,
+      "leakagedetectors": null,
+      "smokedetectors": null,
+      "cameras": null,
+      "doorsPlan": {
+        "areas": [
+          {
+            "id": 0,
+            "translationKey": "AREA_1_KEY",
+            "sections": [
+              {
+                "id": "s-base",
+                "name": "basement",
+                "translationKey": "BASEMENT_PLACE",
+                "places": [
+                  {
+                    "id": "p-dorm",
+                    "name": "bedroom",
+                    "translationKey": "BEDROOM_PLACE",
+                    "components": [
+                      {
+                        "serialNumber": "CS-01",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "MagneticContact",
+                        "mountType": "WINDOW",
+                        "mountIndex": 1,
+                        "info": {
+                          "closed": true,
+                          "alarm": false,
+                          "lastChanged": "2026-11-08T16:52:42.636Z",
+                          "chimeSettings": {
+                            "enabled": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "p-lav",
+                    "name": "laundry room",
+                    "translationKey": "LAUNDRY_ROOM_PLACE",
+                    "components": [
+                      {
+                        "serialNumber": "CS-02",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "MagneticContact",
+                        "mountType": "WINDOW",
+                        "mountIndex": 1,
+                        "info": {
+                          "closed": true,
+                          "alarm": false,
+                          "lastChanged": "2026-11-04T18:52:42.636Z",
+                          "batteryLow": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "p-reu",
+                    "name": "meeting room",
+                    "translationKey": "MEETING_ROOM_PLACE",
+                    "components": [
+                      {
+                        "serialNumber": "CS-03",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "MagneticContact",
+                        "mountType": "WINDOW",
+                        "mountIndex": 1,
+                        "info": {
+                          "closed": true,
+                          "alarm": false
+                        }
+                      },
+                      {
+                        "serialNumber": "CS-04",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "MagneticContact",
+                        "mountType": "WINDOW",
+                        "mountIndex": 2,
+                        "info": {
+                          "closed": false,
+                          "alarm": false,
+                          "lastChanged": "2026-11-09T18:17:42.636Z"
+                        }
+                      },
+                      {
+                        "serialNumber": "CS-05",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "MagneticContact",
+                        "mountType": "DOOR",
+                        "mountIndex": 1,
+                        "info": {
+                          "closed": true,
+                          "alarm": false,
+                          "chimeSettings": {
+                            "enabled": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "s-ground",
+                "name": "ground floor",
+                "translationKey": "GROUND_FLOOR_PLACE",
+                "places": [
+                  {
+                    "id": "p-coc",
+                    "name": "kitchen",
+                    "translationKey": "KITCHEN_PLACE",
+                    "components": [
+                      {
+                        "serialNumber": "CS-06",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "MagneticContact",
+                        "mountType": "WINDOW",
+                        "mountIndex": 1,
+                        "info": {
+                          "closed": true,
+                          "alarm": false
+                        }
+                      },
+                      {
+                        "serialNumber": "CS-07",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "MagneticContact",
+                        "mountType": "DOOR",
+                        "mountIndex": 1,
+                        "info": {
+                          "closed": true,
+                          "alarm": false
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "p-ent",
+                    "name": "entryway",
+                    "translationKey": "ENTRYWAY_PLACE",
+                    "friendlyName": "Recibidor",
+                    "components": [
+                      {
+                        "serialNumber": "CS-08",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "MagAndGate",
+                        "mountType": "DOOR",
+                        "mountIndex": 1,
+                        "info": {
+                          "closed": true,
+                          "alarm": false,
+                          "lastChanged": "2026-11-09T16:52:42.636Z",
+                          "chimeSettings": {
+                            "enabled": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "temperaturePlan": {
+        "averageTemperature": 20.1,
+        "areas": [
+          {
+            "id": 0,
+            "translationKey": "AREA_1_KEY",
+            "sections": [
+              {
+                "id": "s-base",
+                "name": "basement",
+                "translationKey": "BASEMENT_PLACE",
+                "places": [
+                  {
+                    "id": "p-dorm",
+                    "name": "bedroom",
+                    "translationKey": "BEDROOM_PLACE",
+                    "averageTemperature": 20,
+                    "components": [
+                      {
+                        "serialNumber": "CS-01",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "VibrationSensor",
+                        "info": {
+                          "temperature": 20,
+                          "batteryLow": false,
+                          "supervision": false
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "p-gar",
+                    "name": "indoor garage",
+                    "translationKey": "INDOOR_GARAGE_PLACE",
+                    "averageTemperature": 19,
+                    "components": [
+                      {
+                        "serialNumber": "T-901",
+                        "name": "basement indoor garage",
+                        "typeName": "SmokeDetector",
+                        "info": {
+                          "temperature": 19,
+                          "humidity": 58
+                        }
+                      },
+                      {
+                        "serialNumber": "C-901",
+                        "name": "Camera Motion Detector",
+                        "typeName": "CameraPIR",
+                        "info": {
+                          "active": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "p-lav",
+                    "name": "laundry room",
+                    "translationKey": "LAUNDRY_ROOM_PLACE",
+                    "averageTemperature": 19,
+                    "components": [
+                      {
+                        "serialNumber": "CS-02",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "VibrationSensor",
+                        "info": {
+                          "temperature": 19,
+                          "batteryLow": true
+                        }
+                      },
+                      {
+                        "serialNumber": "F-901",
+                        "name": "Flood Detector",
+                        "typeName": "FloodDetector",
+                        "info": {
+                          "temperature": 18.5
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "p-reu",
+                    "name": "meeting room",
+                    "translationKey": "MEETING_ROOM_PLACE",
+                    "averageTemperature": 20.4,
+                    "components": [
+                      {
+                        "serialNumber": "CS-03",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "VibrationSensor",
+                        "info": {
+                          "temperature": 20
+                        }
+                      },
+                      {
+                        "serialNumber": "CS-04",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "VibrationSensor",
+                        "info": {
+                          "temperature": 21
+                        }
+                      },
+                      {
+                        "serialNumber": "CS-05",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "VibrationSensor",
+                        "info": {
+                          "temperature": 21,
+                          "supervision": true
+                        }
+                      },
+                      {
+                        "serialNumber": "T-902",
+                        "name": "basement meeting room",
+                        "typeName": "SmokeDetector",
+                        "info": {
+                          "temperature": 20,
+                          "humidity": 47
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "s-ground",
+                "name": "ground floor",
+                "translationKey": "GROUND_FLOOR_PLACE",
+                "places": [
+                  {
+                    "id": "p-coc",
+                    "name": "kitchen",
+                    "translationKey": "KITCHEN_PLACE",
+                    "averageTemperature": 20.5,
+                    "components": [
+                      {
+                        "serialNumber": "CS-06",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "VibrationSensor",
+                        "info": {
+                          "temperature": 21
+                        }
+                      },
+                      {
+                        "serialNumber": "CS-07",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "VibrationSensor",
+                        "info": {
+                          "temperature": 20
+                        }
+                      },
+                      {
+                        "serialNumber": "T-903",
+                        "name": "ground floor kitchen",
+                        "typeName": "SmokeDetector",
+                        "info": {
+                          "temperature": 22,
+                          "humidity": 51,
+                          "batteryCritical": true,
+                          "batteryLow": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "p-ent",
+                    "name": "entryway",
+                    "translationKey": "ENTRYWAY_PLACE",
+                    "friendlyName": "Recibidor",
+                    "averageTemperature": 19.5,
+                    "components": [
+                      {
+                        "serialNumber": "CS-08",
+                        "name": "Contact and Shock Detector",
+                        "typeName": "VibrationSensor",
+                        "info": {
+                          "temperature": 19.5
+                        }
+                      },
+                      {
+                        "serialNumber": "K-901",
+                        "name": "Keypad",
+                        "typeName": "Keypad",
+                        "info": {}
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "humidityPlan": {
+        "averageHumidity": 52,
+        "areas": [
+          {
+            "id": 0,
+            "translationKey": "AREA_1_KEY",
+            "sections": [
+              {
+                "id": "s-base",
+                "name": "basement",
+                "translationKey": "BASEMENT_PLACE",
+                "places": [
+                  {
+                    "id": "p-gar",
+                    "name": "indoor garage",
+                    "translationKey": "INDOOR_GARAGE_PLACE",
+                    "components": [
+                      {
+                        "serialNumber": "T-901",
+                        "name": "basement indoor garage",
+                        "typeName": "SmokeDetector",
+                        "info": {
+                          "humidity": 58
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "p-reu",
+                    "name": "meeting room",
+                    "translationKey": "MEETING_ROOM_PLACE",
+                    "components": [
+                      {
+                        "serialNumber": "T-902",
+                        "name": "basement meeting room",
+                        "typeName": "SmokeDetector",
+                        "info": {
+                          "humidity": 47
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "s-ground",
+                "name": "ground floor",
+                "translationKey": "GROUND_FLOOR_PLACE",
+                "places": [
+                  {
+                    "id": "p-coc",
+                    "name": "kitchen",
+                    "translationKey": "KITCHEN_PLACE",
+                    "components": [
+                      {
+                        "serialNumber": "T-903",
+                        "name": "ground floor kitchen",
+                        "typeName": "SmokeDetector",
+                        "info": {
+                          "humidity": 51
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "camerasPlan": {
+        "areas": [
+          {
+            "id": 0,
+            "translationKey": "AREA_1_KEY",
+            "sections": [
+              {
+                "id": "s-base",
+                "name": "basement",
+                "translationKey": "BASEMENT_PLACE",
+                "places": [
+                  {
+                    "id": "p-gar",
+                    "name": "indoor garage",
+                    "translationKey": "INDOOR_GARAGE_PLACE",
+                    "components": [
+                      {
+                        "serialNumber": "C-901",
+                        "name": "Camera Motion Detector",
+                        "typeName": "CameraPIR",
+                        "info": {
+                          "active": true,
+                          "batteryLow": false
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "battery": {
+        "panelId": "00099999",
+        "generatedAt": "2026-11-09T18:52:42.636Z",
+        "shipments": [
+          {
+            "taskGuid": "demo-ship-1",
+            "taskCreatedAt": "2026-11-07T18:52:42.636Z",
+            "address": "Calle del Olivo 12, Madrid",
+            "areas": [
+              {
+                "id": 0,
+                "translationKey": "AREA_1_KEY",
+                "sections": [
+                  {
+                    "id": "s-ground",
+                    "translationKey": "GROUND_FLOOR_PLACE",
+                    "places": [
+                      {
+                        "id": "p-coc",
+                        "translationKey": "KITCHEN_PLACE",
+                        "components": [
+                          {
+                            "serialNumber": "T-903",
+                            "name": "ground floor kitchen",
+                            "typeName": "SmokeDetector",
+                            "info": {
+                              "batteryType": "1x CR123A (3 V)",
+                              "instructionsUri": "https://vimeo.com/868271112",
+                              "batterySent": true,
+                              "batteryRestored": false
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "logs": {
+        "Records": [
+          {
+            "Time": "2026-11-09T18:12:42.636Z",
+            "EventType": "disarmed",
+            "User": "Marcos",
+            "Channel": "App",
+            "AreaInfo": {
+              "Area": 0,
+              "AreaName": "Casa",
+              "AreaKey": "AREA_1_KEY"
+            }
+          },
+          {
+            "Time": "2026-11-09T09:52:42.636Z",
+            "EventType": "armed",
+            "User": "Marcos",
+            "Channel": "Keypad"
+          },
+          {
+            "Time": "2026-11-08T16:52:42.636Z",
+            "EventType": "low-battery",
+            "SensorInformation": {
+              "DeviceType": "SmokeDetector",
+              "PlaceKey": "KITCHEN_PLACE",
+              "SectionKey": "GROUND_FLOOR_PLACE",
+              "BatterySent": true
+            }
+          },
+          {
+            "Time": "2026-11-07T18:52:42.636Z",
+            "EventType": "internet_lost"
+          },
+          {
+            "Time": "2026-11-07T18:55:42.636Z",
+            "EventType": "internet_restored"
+          }
+        ]
+      },
+      "errors": {}
+    }
+  }
+}
