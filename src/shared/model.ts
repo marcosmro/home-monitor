@@ -1,3 +1,4 @@
+import type { HouseMapData, MapPlacement } from "./house-map";
 import type { CaptureJob, PhotoPage } from "./cameras";
 import type { Climate } from "./climate";
 export type Mode = "armed" | "partial" | "disarmed" | "unknown";
@@ -100,6 +101,12 @@ export const defaults: Preferences = {
   aliases: {},
 };
 export interface Bridge {
+  houseMap(): Promise<HouseMapData>;
+  mapImage(id: string): Promise<string>;
+  saveMapPlacement(
+    deviceId: string,
+    placement: MapPlacement | null,
+  ): Promise<void>;
   setBudgetOverride(enabled: boolean): Promise<Snapshot>;
   cameraState(): Promise<CaptureJob>;
   captureCameras(ids: string[]): Promise<CaptureJob>;

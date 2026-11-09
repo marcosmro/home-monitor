@@ -1,3 +1,4 @@
+import { HouseMap } from "./HouseMap";
 import { BudgetNotice } from "./BudgetNotice";
 import { Cameras } from "./Cameras";
 import { useEffect, useRef, useState } from "react";
@@ -90,7 +91,7 @@ export default function App() {
   const [snap, setSnap] = useState<Snapshot>();
   const [prefs, setPrefs] = useState(defaults);
   const [view, setView] = useState<
-    "overview" | "activity" | "settings" | "cameras"
+    "overview" | "activity" | "settings" | "cameras" | "map"
   >("overview");
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -238,6 +239,7 @@ export default function App() {
         <div className="rail-nav">
           {[
             ["overview", "grid", "House overview"],
+            ["map", "layers", "House map"],
             ["cameras", "camera", "Cameras"],
             ["activity", "clock", "Activity"],
             ["settings", "settings", "Settings"],
@@ -467,6 +469,13 @@ export default function App() {
           </div>
         )}
         <main>
+          {view === "map" && (
+            <HouseMap
+              key={`${snap.demo}:${snap.panelId}`}
+              snap={snap}
+              prefs={prefs}
+            />
+          )}
           {view === "cameras" && (
             <Cameras
               key={`${snap.demo}:${snap.panelId}`}

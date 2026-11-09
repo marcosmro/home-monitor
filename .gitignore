@@ -8,3 +8,6 @@ dist/
 .playwright-mcp/
 test-results/
 playwright-report/
+
+# Private house plans and photographs extracted locally
+/private-house/

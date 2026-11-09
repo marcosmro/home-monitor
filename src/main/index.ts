@@ -1,3 +1,4 @@
+import { HouseMapStore } from "./house-map";
 import { PhotoStore, CameraController } from "./photos";
 import {
   app,
@@ -87,6 +88,11 @@ app.whenReady().then(async () => {
       .catch(() => {});
   });
   const monitor = new Monitor(api, (s) => win?.webContents.send("snapshot", s));
+  const mapStore = new HouseMapStore(
+    join(app.getPath("userData"), "house-map"),
+  );
+  const mapScope = () =>
+    `${monitor.snap.demo ? "demo" : "live"}:${monitor.snap.panelId}`;
   const photoStore = new PhotoStore(join(app.getPath("userData"), "photos"));
   const cameras = new CameraController(monitor, photoStore, async () => {
     await new Promise((resolve) => setTimeout(resolve, 700));
@@ -135,6 +141,16 @@ app.whenReady().then(async () => {
     cb(false),
   );
   const handlers: Record<string, (...args: any[]) => any> = {
+    houseMap: () => mapStore.load(mapScope()),
+    mapImage: (id) => mapStore.image(id),
+    saveMapPlacement: (id, placement) => {
+      if (
+        typeof id !== "string" ||
+        !monitor.snap.devices.some((d) => d.id === id)
+      )
+        throw new Error("Unknown sensor.");
+      return mapStore.save(mapScope(), id, placement);
+    },
     cameraState: () => cameras.state(),
     captureCameras: (ids) => cameras.start(ids),
     cancelCapture: () => cameras.cancel(),

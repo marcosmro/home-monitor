@@ -226,3 +226,90 @@ test("capture queue shows estimated progress and an animated active camera", asy
   ).toHaveCount(0);
   await expect(page.locator(".capture-spinner")).toHaveCount(0);
 });
+
+test("house map suggestions can be moved, persisted, and removed", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "House map", exact: true }).click();
+  await expect(page.locator(".map-pin")).toHaveCount(16);
+  await expect(page.locator(".house-map")).toContainText("48 suggested");
+  await page
+    .getByRole("button", { name: "Edit locations", exact: true })
+    .click();
+  const pin = page.locator(".map-pin").first();
+  await pin.click();
+  await expect(
+    page.getByRole("button", { name: "Confirm this location" }),
+  ).toBeVisible();
+  const box = await page.locator(".map-canvas").boundingBox();
+  await page.mouse.click(box!.x + box!.width * 0.1, box!.y + box!.height * 0.1);
+  await expect(page.locator(".map-pin.confirmed")).toHaveCount(1);
+  const marker = await page.locator(".map-pin.confirmed").boundingBox();
+  await page.mouse.move(
+    marker!.x + marker!.width / 2,
+    marker!.y + marker!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width * 0.3, box!.y + box!.height * 0.3, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await expect
+    .poll(async () => {
+      const left = await page
+        .locator(".map-pin.confirmed")
+        .evaluate((el) => parseFloat(getComputedStyle(el).left));
+      return Math.abs(left - box!.width * 0.3);
+    })
+    .toBeLessThan(1);
+  await page.reload();
+  await page.getByRole("button", { name: "House map", exact: true }).click();
+  await expect(page.locator(".map-pin.confirmed")).toHaveCount(1);
+  await page.locator(".map-pin.confirmed").click();
+  await page
+    .getByRole("button", { name: "Edit locations", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Remove from map", exact: true })
+    .click();
+  await expect(page.locator(".house-map")).toContainText("1 unplaced");
+  await expect(page.locator(".map-pin")).toHaveCount(15);
+});
+
+test("vector map supports source comparison, opening assignment, and saved camera direction", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "House map", exact: true }).click();
+  await expect(page.locator(".map-vector")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Original plan", exact: true })
+    .click();
+  await expect(page.locator(".map-plan-image")).toBeVisible();
+  await page.getByRole("button", { name: "Show redraw", exact: true }).click();
+  const camera = () =>
+    page
+      .locator(".map-sensor-list button")
+      .filter({ hasText: "Entrada" })
+      .filter({ hasText: "Detector con cámara" });
+  await camera().click();
+  await page
+    .getByRole("button", { name: "Edit locations", exact: true })
+    .click();
+  await page
+    .getByLabel("Place at identified opening", { exact: true })
+    .selectOption("V1");
+  const direction = page.getByLabel("Camera direction", { exact: true });
+  await direction.fill("90");
+  await direction.press("ArrowRight");
+  await expect(direction).toHaveValue("91");
+  await page.reload();
+  await page.getByRole("button", { name: "House map", exact: true }).click();
+  await camera().click();
+  await page
+    .getByRole("button", { name: "Edit locations", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Camera direction", { exact: true }),
+  ).toHaveValue("91");
+  await expect(page.locator(".camera-direction")).toHaveCount(1);
+});

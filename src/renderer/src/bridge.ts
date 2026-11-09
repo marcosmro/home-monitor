@@ -1,3 +1,5 @@
+import { demoMap, demoMapImage } from "../../shared/demo-map";
+import { validatePlacement } from "../../shared/house-map";
 import type { CaptureJob, Photo } from "../../shared/cameras";
 import type { Bridge, Preferences } from "../../shared/model";
 import { defaults } from "../../shared/model";
@@ -28,6 +30,18 @@ let demoJob: CaptureJob = {
   revision: 0,
 };
 const browser: Bridge = {
+  houseMap: async () => ({
+    ...demoMap(),
+    placements: JSON.parse(localStorage.getItem("demo-map-placements") || "{}"),
+  }),
+  mapImage: async (id) => demoMapImage(id),
+  saveMapPlacement: async (id, p) => {
+    const data = JSON.parse(
+      localStorage.getItem("demo-map-placements") || "{}",
+    );
+    data[id] = validatePlacement(p, demoMap());
+    localStorage.setItem("demo-map-placements", JSON.stringify(data));
+  },
   setBudgetOverride: async (enabled) => demo.setBudgetOverride(enabled),
   cameraState: async () => structuredClone(demoJob),
   captureCameras: async (ids) => {

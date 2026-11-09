@@ -93,3 +93,17 @@ Added mocked checks for success → 405 → success without repeating a camera, 
 ## Intermittent capture rejection follow-up
 
 A subsequent user screenshot showed a successful new photo, 405 rejections including a camera with an older saved photo, an incomplete response, and a skipped camera. This does not establish a camera-specific method mismatch. Added a conservative 10-second pause between live batch requests (not a documented provider requirement), cancelable during the pause, with the pause included in estimates. Unknown outcomes stop pending captures and are labeled separately from definitive failures; summaries include skipped cameras. Cached thumbnails show their saved timestamp. Nested JSON error strings are decoded for readability. Tests cover pacing/cancellation, unknown-outcome stopping, error decoding and pause estimates. No live camera calls were made; the pause is not a verified fix for the server's 405 response.
+
+## Editable house map
+
+99 core tests pass, including automatic room/window suggestions, ambiguous matches, invalid coordinates and cross-plan room rejection, concurrent placement writes, removal persistence, and property isolation. The browser map scenario covers selecting a suggested marker without accepting it accidentally, click placement, dragging and save/reload/removal. The existing 12 browser scenarios also pass. Type checking and production build pass.
+
+The map reads existing snapshots only. Real mounting positions remain suggestions because API window indices do not identify specific drawing openings. Unmatched sensors remain explicitly unplaced. Private plans and room guides are excluded from Git and app packaging; browser previews use synthetic plans. Live inventory verification for this change was deferred because the existing local hourly request budget was exhausted; no override or live capture was triggered.
+
+An isolated Electron demo-profile check decoded all four imported private JPEG plans, saved a placement through the validated preload bridge, restarted the app, and verified the marker remained. It made zero live requests and removed the temporary profile afterward.
+
+## Traced vector plans and camera-photo placement
+
+Added native SVG geometry rendering, source-plan comparison, opening labels and direct assignment, photo-derived camera hints, editable/persistent direction, and archived reference-photo viewing. Coordinate transforms retain the original image coordinate system so cropping the redraw does not move saved positions. Existing local overrides take precedence over updated suggestions.
+
+100 core tests pass, including matching camera-only hints, preserved direction and rejected invalid angles. The 13 existing browser scenarios pass; an additional scenario verifies vector/source switching, opening assignment and direction persistence. A private isolated desktop profile rendered the four traced plans and exercised five photo hints, native image loading, enlarged photo dialog, direction persistence, opening placement, original/redraw toggling, and 1024px dark layout without horizontal overflow. No live requests or new captures were made. Private preview files remain ignored. Direction fans are illustrative and camera locations remain inferred, with varying confidence; they are not surveyed positions or measured coverage.
