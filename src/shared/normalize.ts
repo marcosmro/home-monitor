@@ -191,6 +191,7 @@ export function plan(
           const original = str(c.name, str(c.typeName, "Unnamed sensor"));
           out.push({
             id: String(c.serialNumber),
+            cameraRoute: source === "cameras" ? "modern" : undefined,
             eventReference: sensorReference(
               c.typeName,
               mountType(c.mountType),
@@ -368,6 +369,8 @@ export function legacyPlan(
         : Number(String(rawTemperature).replace(",", "."));
     out.push({
       id,
+      cameraRoute: source === "cameras" ? "legacy" : undefined,
+      legacyCameraId: source === "cameras" ? asId(d.Id) : undefined,
       original: str(d.Label, str(d.Name, fallbackType)),
       mount: mountType(d.MountType),
       mountIndex: mountIndex(d.MountIndex),

@@ -219,7 +219,7 @@ describe("HTTP safety", () => {
     };
     const a = new SectorApi(m, () => {}, f);
     await expect(a.login("a", "b")).rejects.toThrow();
-    await expect(a.login("a", "b")).rejects.toThrow("budget");
+    await expect(a.login("a", "b")).rejects.toThrow("cannot bypass");
     expect(f).toHaveBeenCalledTimes(1);
   });
 });

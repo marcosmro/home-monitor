@@ -139,8 +139,90 @@ test("temperature averages use the full inventory through filtering", async ({
   await expect(page.locator(".room-temperature")).toHaveCount(12);
   await expect(page.locator(".house-temperature")).toContainText("20.9°");
   await page.getByRole("button", { name: "Open 3", exact: true }).click();
-  await expect(page.locator(".house-temperature")).toHaveText(average, { useInnerText: true });
+  await expect(page.locator(".house-temperature")).toHaveText(average, {
+    useInnerText: true,
+  });
   await expect(page.locator(".room-temperature").first()).toContainText(
     "20.0°",
   );
+});
+
+test("camera panel captures, opens, and deletes a simulated photo", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Cameras", exact: true }).click();
+  await expect(page.locator(".camera-card")).toHaveCount(12);
+  await page
+    .getByRole("button", { name: "Take photo", exact: true })
+    .first()
+    .click();
+  await expect(page.locator(".photo-tile")).toHaveCount(1);
+  await page.locator(".photo-tile").click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("dialog").locator("img")).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .getByRole("dialog")
+        .locator("img")
+        .evaluate((img: HTMLImageElement) => img.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await expect(page.getByLabel("Photo zoom", { exact: true })).toHaveText(
+    "150%",
+  );
+  expect(
+    await page
+      .locator(".photo-pan")
+      .evaluate((el) => el.scrollWidth > el.clientWidth),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Fit", exact: true }).click();
+  await expect(page.getByLabel("Photo zoom", { exact: true })).toHaveText(
+    "100%",
+  );
+  await page.getByRole("button", { name: "Delete…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Delete permanently", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".photo-tile")).toHaveCount(0);
+});
+
+test("temporary request cap override is visible and reversible", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const controls = page.locator("main .budget-notice");
+  await controls
+    .getByRole("button", { name: "Override cap for this hour" })
+    .click();
+  await expect(controls).toContainText(
+    "Local request cap temporarily disabled",
+  );
+  await controls.getByRole("button", { name: "Restore request cap" }).click();
+  await expect(
+    controls.getByRole("button", { name: "Override cap for this hour" }),
+  ).toBeVisible();
+});
+
+test("capture queue shows estimated progress and an animated active camera", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Cameras", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Capture all (12)", exact: true })
+    .click();
+  await expect(
+    page.getByRole("progressbar", { name: "Estimated capture progress" }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".camera-card.is-capturing .capture-spinner"),
+  ).toBeVisible();
+  await expect(page.locator(".capture-progress")).toContainText("remaining");
+  await page.getByRole("button", { name: "Stop after current photo" }).click();
+  await expect(
+    page.getByRole("button", { name: "Stop after current photo" }),
+  ).toHaveCount(0);
+  await expect(page.locator(".capture-spinner")).toHaveCount(0);
 });

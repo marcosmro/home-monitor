@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "A calm, comprehensive desktop view of your Sector Alarm home",
   "main": "./out/main/index.js",
-  "author": "Marcos Mart\u00ednez Romero",
+  "author": "Marcos Martínez Romero",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -19,7 +19,8 @@
     "test:e2e": "playwright test",
     "test:desktop": "npm run build && node scripts/desktop-smoke.mjs",
     "pack:mac": "npm run build && electron-builder --mac --dir",
-    "format": "prettier --write src tests scripts *.ts *.json *.yml"
+    "format": "prettier --write src tests scripts *.ts *.json *.yml",
+    "install:launcher": "node scripts/install-launcher.mjs"
   },
   "dependencies": {
     "react": "19.3.1",

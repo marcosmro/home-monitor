@@ -5,6 +5,14 @@ const invoke =
   (...args: unknown[]) =>
     ipcRenderer.invoke(name, ...args);
 const bridge: Bridge = {
+  setBudgetOverride: invoke("setBudgetOverride"),
+  cameraState: invoke("cameraState"),
+  captureCameras: invoke("captureCameras"),
+  cancelCapture: invoke("cancelCapture"),
+  photoLibrary: invoke("photoLibrary"),
+  photoImage: invoke("photoImage"),
+  deletePhoto: invoke("deletePhoto"),
+  exportPhoto: invoke("exportPhoto"),
   snapshot: invoke("snapshot"),
   demo: invoke("demo"),
   refresh: invoke("refresh"),

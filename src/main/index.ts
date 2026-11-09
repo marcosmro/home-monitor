@@ -1,9 +1,12 @@
+import { PhotoStore, CameraController } from "./photos";
 import {
   app,
   BrowserWindow,
   ipcMain,
   safeStorage,
   powerMonitor,
+  dialog,
+  nativeImage,
 } from "electron";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -84,6 +87,27 @@ app.whenReady().then(async () => {
       .catch(() => {});
   });
   const monitor = new Monitor(api, (s) => win?.webContents.send("snapshot", s));
+  const photoStore = new PhotoStore(join(app.getPath("userData"), "photos"));
+  const cameras = new CameraController(monitor, photoStore, async () => {
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    // A clearly synthetic image; never a screenshot of the user's desktop.
+    const width = 640,
+      height = 360,
+      pixels = Buffer.alloc(width * height * 4);
+    for (let y = 0; y < height; y++)
+      for (let x = 0; x < width; x++) {
+        const n = (y * width + x) * 4,
+          line = x % 80 < 2 || y % 60 < 2;
+        pixels[n] = line ? 100 : 55;
+        pixels[n + 1] = line ? 150 : 78;
+        pixels[n + 2] = line ? 120 : 60;
+        pixels[n + 3] = 255;
+      }
+    return nativeImage
+      .createFromBitmap(pixels, { width, height })
+      .toPNG()
+      .toString("base64");
+  });
   const dev = process.env.ELECTRON_RENDERER_URL;
   const renderer = join(import.meta.dirname, "../renderer/index.html");
   const allowed = dev || pathToFileURL(renderer).href;
@@ -111,7 +135,28 @@ app.whenReady().then(async () => {
     cb(false),
   );
   const handlers: Record<string, (...args: any[]) => any> = {
-    snapshot: () => monitor.snap,
+    cameraState: () => cameras.state(),
+    captureCameras: (ids) => cameras.start(ids),
+    cancelCapture: () => cameras.cancel(),
+    photoLibrary: (offset) => photoStore.list(cameras.scope(), offset),
+    photoImage: (id) => photoStore.image(cameras.scope(), id),
+    deletePhoto: (id) => photoStore.remove(cameras.scope(), id),
+    exportPhoto: async (id) => {
+      const data = await photoStore.image(cameras.scope(), id);
+      const png = data.startsWith("data:image/png");
+      const result = await dialog.showSaveDialog(win!, {
+        defaultPath: `Home-Monitor-${id}.${png ? "png" : "jpg"}`,
+        filters: [{ name: "Photo", extensions: [png ? "png" : "jpg"] }],
+      });
+      if (!result.canceled && result.filePath)
+        await fs.writeFile(
+          result.filePath,
+          Buffer.from(data.split(",")[1], "base64"),
+          { mode: 0o600 },
+        );
+    },
+    setBudgetOverride: (enabled) => monitor.setBudgetOverride(enabled),
+    snapshot: () => monitor.publish(),
     demo: () => monitor.demo(),
     refresh: () => monitor.refresh(true),
     login: async (email, password, save) => {

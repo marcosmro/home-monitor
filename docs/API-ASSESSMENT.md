@@ -24,7 +24,7 @@ Source: reference `docs/API-REFERENCE.md`, revision 9 November 2026, commit `666
 ## Deliberate gaps
 
 - TC inventory reads now have documented legacy normalization and fallbacks. Legacy alarm commands remain unsupported.
-- No remote camera, lock, siren, automation, user/contact, or notification-setting writes.
+- No remote lock, siren, automation, user/contact, or notification-setting writes. User-initiated photo capture is supported separately from alarm controls.
 - No native Auth0/MFA flow is implemented. Unsupported legacy login responses stop and explain the limitation.
 - No full history paging beyond the latest 80 events. The total is explicit.
 - Telemetry generally lacks individual sensor last-report time; fetching does not manufacture one. Contact lastChanged is a state-change timestamp, not freshness proof.
@@ -53,3 +53,9 @@ A read-only check confirmed that the modern state endpoint returns `Armed` for t
 ## Mount-type serialization discrepancy
 
 The summary reference describes string `DOOR`/`WINDOW` serialization. Its detailed official-app analysis (§doors/windows, MountTypeDto) also documents DOOR=0 and WINDOW=1. Read-only verification on this account returned the numeric representation, with 29 windows, 1 door and an index for every contact. Both representations are now normalized explicitly; missing/unknown mounts never default to door.
+
+## Camera capture implementation
+
+Based on reference sections 6.7–6.8, the camera panel uses modern `takepicture` or the documented legacy `Panel/TakePicture` route when inventory explicitly identifies a legacy camera and device ID. Physical captures are serialized with 120-second timeouts and no automatic retry. All requests share the existing persisted request budget. A fresh fully-armed state is required before capture; polling is suspended for the batch, with state rechecks between cameras if necessary. Failures stop pending captures except for a definitive per-camera HTTP 405 rejection, and cancellation waits for the in-flight result. Neither endpoint timing nor concurrency limits have been independently measured against the user's cameras. No live captures were performed during implementation.
+
+A user subsequently reported two successful camera photos followed by a 405 for Entrada. The sample client uses the same modern GET route. No global method change is justified by this observation. The client now preserves the camera response explanation and advertised allowed methods, does not retry the rejected camera, and continues remaining cameras on this specific rejection. Unauthenticated OPTIONS inspection returned 401 with no Allow header, so it did not establish an alternative method. The camera-specific cause remains unconfirmed until a response explanation is available.

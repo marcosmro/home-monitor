@@ -1,3 +1,5 @@
+import { BudgetNotice } from "./BudgetNotice";
+import { Cameras } from "./Cameras";
 import { useEffect, useRef, useState } from "react";
 import type { Action, Device, Preferences, Snapshot } from "../../shared/model";
 import {
@@ -87,9 +89,9 @@ function Modal({
 export default function App() {
   const [snap, setSnap] = useState<Snapshot>();
   const [prefs, setPrefs] = useState(defaults);
-  const [view, setView] = useState<"overview" | "activity" | "settings">(
-    "overview",
-  );
+  const [view, setView] = useState<
+    "overview" | "activity" | "settings" | "cameras"
+  >("overview");
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("floor");
@@ -236,6 +238,7 @@ export default function App() {
         <div className="rail-nav">
           {[
             ["overview", "grid", "House overview"],
+            ["cameras", "camera", "Cameras"],
             ["activity", "clock", "Activity"],
             ["settings", "settings", "Settings"],
           ].map(([v, icon, label]) => (
@@ -417,6 +420,7 @@ export default function App() {
             </button>
           </div>
         )}
+        <BudgetNotice snap={snap} />
         {Object.keys(snap.warnings).length > 0 && (
           <div className="banner warning" role="status">
             <Icon name="alert" />
@@ -463,6 +467,13 @@ export default function App() {
           </div>
         )}
         <main>
+          {view === "cameras" && (
+            <Cameras
+              key={`${snap.demo}:${snap.panelId}`}
+              snap={snap}
+              prefs={prefs}
+            />
+          )}
           {view === "overview" && (
             <>
               <div className="section-heading">
@@ -1005,13 +1016,14 @@ export default function App() {
                       </button>
                     </>
                   )}
+                  <BudgetNotice snap={snap} available />
                   <dl>
                     <div>
                       <dt>Request budget</dt>
                       <dd>
                         {snap.demo
                           ? "Demo — no requests"
-                          : `${snap.requests} / 44 this hour`}
+                          : `${snap.requests} / ${snap.requestBudget?.override ? "uncapped" : "44"} this hour`}
                       </dd>
                     </div>
                     <div>
@@ -1246,6 +1258,7 @@ export default function App() {
             }
           }}
         >
+          <BudgetNotice snap={snap} />
           <p>
             Your account connects read-only. Credentials are kept in the desktop
             process and optionally protected by the operating system.

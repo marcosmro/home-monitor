@@ -1,4 +1,5 @@
-import { SectorApi, ApiError } from "./api";
+import { isCamera } from "../shared/cameras";
+import { SectorApi, ApiError, CaptureOutcomeUnknown } from "./api";
 import type { Snapshot, Action, Device } from "../shared/model";
 import { demoSnapshot } from "../shared/demo";
 import { state, mergeDevices, logs, panelList } from "../shared/normalize";
@@ -10,6 +11,7 @@ export class Monitor {
   private telemetry: Device[] = [];
   private gate = new CommandGate();
   private busy = false;
+  cameraBusy = false;
   private selecting = false;
   private legacyState = false;
   private inventory?: InventoryReader;
@@ -20,13 +22,19 @@ export class Monitor {
     private api: SectorApi,
     private emit: (s: Snapshot) => void,
   ) {}
+  setBudgetOverride(enabled: boolean) {
+    this.api.setBudgetOverride(enabled);
+    if (enabled) this.lastAttempt = {};
+    return this.publish();
+  }
   publish() {
+    this.snap.requestBudget = this.api.budget;
     this.snap.requests = this.snap.demo ? 0 : this.api.used;
     this.emit(structuredClone(this.snap));
     return this.snap;
   }
   async login(email: string, password: string) {
-    if (this.gate.blocked || this.busy || this.selecting)
+    if (this.gate.blocked || this.busy || this.selecting || this.cameraBusy)
       throw new Error("Wait for the current operation.");
     this.busy = true;
     try {
@@ -48,6 +56,7 @@ export class Monitor {
           "Sign-in failed. Last-known values retained; reconnect to continue.";
         this.publish();
       }
+      this.publish();
       throw error;
     } finally {
       this.busy = false;
@@ -55,7 +64,7 @@ export class Monitor {
   }
 
   async select(id: string) {
-    if (this.gate.blocked || this.busy || this.selecting)
+    if (this.gate.blocked || this.busy || this.selecting || this.cameraBusy)
       throw new Error("Wait for the current operation.");
     if (!this.panels.some((p) => p.id === id))
       throw new Error("Select an available property.");
@@ -109,7 +118,7 @@ export class Monitor {
       return this.publish();
     }
     if (this.selecting && !force) return this.snap;
-    if (this.busy) return this.snap;
+    if (this.busy || this.cameraBusy) return this.snap;
     this.busy = true;
     try {
       const now = Date.now();
@@ -211,6 +220,106 @@ export class Monitor {
         } else throw e;
       }
     Object.assign(this.snap, state(r), { statusAt: new Date().toISOString() });
+    delete this.snap.warnings.status;
+  }
+  async prepareCameras(ids: string[]) {
+    if (this.busy || this.selecting || this.cameraBusy || this.gate.blocked)
+      throw new Error("Wait for the current operation.");
+    if (
+      !Array.isArray(ids) ||
+      !ids.length ||
+      ids.length > 100 ||
+      new Set(ids).size !== ids.length ||
+      ids.some(
+        (id) =>
+          typeof id !== "string" ||
+          !this.snap.devices.some((d) => d.id === id && isCamera(d)),
+      )
+    )
+      throw new Error("Select available cameras.");
+    if (
+      !this.snap.demo &&
+      !this.api.budget.override &&
+      this.api.used + ids.length + 2 > 44
+    )
+      throw new Error(
+        "Not enough hourly budget for this batch plus state/authentication checks. Select fewer cameras or wait until the next hour.",
+      );
+    this.cameraBusy = true;
+    try {
+      if (!this.snap.demo) await this.readState();
+      this.assertCameraState();
+      return ids.map((id) => this.snap.devices.find((d) => d.id === id)!);
+    } catch (error) {
+      this.cameraBusy = false;
+      throw error;
+    } finally {
+      this.publish();
+    }
+  }
+  private assertCameraState() {
+    if (
+      this.snap.online !== true ||
+      this.snap.mode !== "armed" ||
+      this.snap.warnings.status ||
+      !this.snap.statusAt ||
+      !Number.isFinite(Date.parse(this.snap.statusAt)) ||
+      Date.now() - Date.parse(this.snap.statusAt) > 240000
+    )
+      throw new Error(
+        "Photos require a connected, fully armed system with a current status. The app will never arm it automatically.",
+      );
+  }
+  async captureCamera(d: Device): Promise<string> {
+    if (!this.cameraBusy) throw new Error("No active capture queue.");
+    if (
+      !this.snap.demo &&
+      Date.now() - Date.parse(this.snap.statusAt || "") > 180000
+    )
+      await this.readState();
+    this.assertCameraState();
+    if (d.offline || d.active === false)
+      throw new Error("Camera is unavailable.");
+    const panel = encodeURIComponent(this.snap.panelId);
+    const modern = `/api/vs2/alarmsystems/v3/panels/${panel}/components/cameras/${encodeURIComponent(d.id)}/takepicture`;
+    const legacy = `/api/Panel/TakePicture?panelId=${panel}&deviceId=${encodeURIComponent(d.legacyCameraId || "")}`;
+    if (d.cameraRoute === "legacy" && !d.legacyCameraId)
+      throw new Error("Legacy camera has no documented capture identifier.");
+    // This GET triggers a physical action: never retry after 401 or a timeout.
+    try {
+      const raw = await this.api.request(
+        d.cameraRoute === "legacy" ? legacy : modern,
+        undefined,
+        true,
+        false,
+        120000,
+      );
+      const value = raw?.image ?? raw?.Image;
+      if (typeof value !== "string" || !value)
+        throw new Error("Camera returned no photo. Nothing was saved.");
+      return value;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 405) {
+        const explanation = error.details?.serverMessage;
+        const allowed = error.details?.allowedMethods?.join(", ");
+        throw new ApiError(
+          `This camera rejected the ${d.cameraRoute === "legacy" ? "legacy" : "modern"} GET capture request (405). ${explanation ? `Sector Alarm: ${explanation}. ` : "The server supplied no explanation. "}${allowed ? `Allowed methods reported by server: ${allowed}. ` : ""}No retry was sent; other cameras can continue.`,
+          405,
+          error.details,
+        );
+      }
+      if (error instanceof ApiError && error.status === 0)
+        throw new CaptureOutcomeUnknown(
+          "No complete response was received. Capture outcome is unknown; the camera may still be processing. The batch stopped without retrying. Wait before trying again.",
+        );
+      throw error;
+    } finally {
+      this.publish();
+    }
+  }
+  finishCameras() {
+    this.cameraBusy = false;
+    this.publish();
   }
   readOnly(value: boolean) {
     if (this.gate.blocked) throw new Error("Resolve the command first.");
@@ -221,7 +330,7 @@ export class Monitor {
   async command(action: Action, code: string, area: number) {
     if (!["arm", "partialArm", "disarm"].includes(action))
       throw new Error("Unsupported action.");
-    if (this.busy || this.selecting)
+    if (this.busy || this.selecting || this.cameraBusy)
       throw new Error("Wait for refresh to finish.");
     if (this.snap.readOnly)
       throw new Error("Enable live controls in connection settings first.");
@@ -334,19 +443,25 @@ export class Monitor {
     }
   }
   logout() {
+    if (this.cameraBusy)
+      throw new Error(
+        "Stop the capture queue and wait for the current photo first.",
+      );
     const s = this.demo();
     this.api.clear();
     this.panels = [];
     return s;
   }
   demo() {
-    if (this.gate.blocked || this.busy || this.selecting)
+    if (this.cameraBusy) throw new Error("Wait for the current photo first.");
+    if (this.gate.blocked || this.busy || this.selecting || this.cameraBusy)
       throw new Error("Resolve the current operation first.");
     this.snap = demoSnapshot();
     this.gate = new CommandGate();
     return this.publish();
   }
   scenario(name: string) {
+    if (this.cameraBusy) throw new Error("Wait for the current photo first.");
     if (!this.snap.demo || this.gate.blocked)
       throw new Error("Scenarios are available only in idle demo mode.");
     this.snap = demoSnapshot();

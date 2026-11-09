@@ -1,3 +1,4 @@
+import type { CaptureJob, PhotoPage } from "./cameras";
 import type { Climate } from "./climate";
 export type Mode = "armed" | "partial" | "disarmed" | "unknown";
 export type Action = "arm" | "partialArm" | "disarm";
@@ -5,6 +6,8 @@ export type Phase =
   "idle" | "sending" | "awaiting" | "confirmed" | "failed" | "unknown";
 export interface Device {
   id: string;
+  cameraRoute?: "modern" | "legacy";
+  legacyCameraId?: string;
   original: string;
   eventReference?: string;
   mount?: "door" | "window";
@@ -52,6 +55,14 @@ export interface Event {
   description: string;
 }
 export interface Snapshot {
+  requestBudget?: {
+    used: number;
+    limit: number;
+    override: boolean;
+    localPaused: boolean;
+    serverPaused: boolean;
+    resetsAt: string;
+  };
   climate?: Climate;
   demo: boolean;
   panelId: string;
@@ -89,6 +100,14 @@ export const defaults: Preferences = {
   aliases: {},
 };
 export interface Bridge {
+  setBudgetOverride(enabled: boolean): Promise<Snapshot>;
+  cameraState(): Promise<CaptureJob>;
+  captureCameras(ids: string[]): Promise<CaptureJob>;
+  cancelCapture(): Promise<CaptureJob>;
+  photoLibrary(offset?: number): Promise<PhotoPage>;
+  photoImage(id: string): Promise<string>;
+  deletePhoto(id: string): Promise<void>;
+  exportPhoto(id: string): Promise<void>;
   snapshot(): Promise<Snapshot>;
   demo(): Promise<Snapshot>;
   refresh(): Promise<Snapshot>;

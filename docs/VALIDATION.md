@@ -6,9 +6,9 @@ Validated 2026-11-09 on macOS / Apple Silicon. Development and command tests use
 
 | Check                                              | Result                                                                  |
 | -------------------------------------------------- | ----------------------------------------------------------------------- |
-| `npm test`                                         | 72 tests passed, 4 files                                                |
+| `npm test`                                         | 95 tests passed, 7 files                                                |
 | `npm run typecheck`                                | Passed, desktop and renderer projects                                   |
-| `npm run test:e2e`                                 | 9 tests passed in Chrome                                                |
+| `npm run test:e2e`                                 | 12 tests passed in Chrome                                                |
 | `npm run build`                                    | Passed: main, sandboxed CommonJS preload, renderer                      |
 | `npm run pack:mac`                                 | Passed: `dist/mac-arm64/Home Monitor.app`, custom icon                  |
 | Packaged application smoke test                    | Passed; real app bundle launched in isolated temporary profile          |
@@ -73,3 +73,23 @@ The connected account returns numeric `mountType` values (1=window, 0=door), mat
 Added sensor Celsius readings, room averages and a house average, preserving API aggregates with calculated fallback. Calculations deduplicate physical devices and exclude offline, inactive or stale readings; filtering does not change their scope. Temperature freshness is tracked independently of contacts. Distinct room IDs remain separate even when names match. Tests cover zero/negative readings, missing data, aggregation weighting, freshness, duplicates and filtering. Both themes retain all 48 demo devices at 1440×900; smaller windows remain scrollable without horizontal overflow.
 
 The read-only live verification returned 36 temperature readings and 13 room averages, with a reported house average of 20.1°C at verification time. No additional endpoint or polling requests were added. The rebuilt application was reopened connected in read-only mode.
+
+## Camera panel and local archive
+
+81 core tests and 10 browser tests pass. New checks cover sequential full batches, cancellation, failure without retry, duplicate-batch exclusion, fully-armed state, request-budget admission, long capture timeouts, legacy capture identifiers, path validation, rejected non-image data, property isolation, persisted photos, and deletion. Browser tests cover capturing a simulated photo, actual image decoding, modal viewing and deletion. The packaged desktop smoke check verifies the archive survives application restart, images decode, native export writes a valid PNG, and deletion removes the local record. This uses an isolated demo profile and zero live requests. Dark/light and 1024px camera layouts were inspected. Live transmission latency and actual camera image responses remain unverified; no live camera was activated.
+
+## Temporary local budget override
+
+Tested default blocking, explicit override, continued request counting, immediate restoration, hour-boundary expiry, restart defaults, session-clear reset, input validation and continued server-429 enforcement. Browser coverage verifies the toggle and active indicator. The override is memory-only and does not automatically replay capture requests. No live limit was exceeded during testing.
+
+## Capture progress and photo zoom
+
+Tests cover estimate calculations, longer-than-estimated captures, timing learned from completed items, cancellation estimates and truthful partial completion. Browser tests verify the active-camera indicator and progress bar, stopping a batch, modal zoom and Fit reset with actual scrollable image enlargement. Compact camera layouts and the zoomed viewer were visually inspected using simulated images only. No extra API calls are introduced by progress updates or zoom.
+
+## Camera-specific 405 handling
+
+Added mocked checks for success → 405 → success without repeating a camera, retained response detail/Allow header, and camera-specific diagnostic text without method switching. Existing stop-on-unknown-outcome behavior remains tested. No live photos were taken to reproduce the reported Entrada failure; the underlying camera rejection is not yet diagnosed.
+
+## Intermittent capture rejection follow-up
+
+A subsequent user screenshot showed a successful new photo, 405 rejections including a camera with an older saved photo, an incomplete response, and a skipped camera. This does not establish a camera-specific method mismatch. Added a conservative 10-second pause between live batch requests (not a documented provider requirement), cancelable during the pause, with the pause included in estimates. Unknown outcomes stop pending captures and are labeled separately from definitive failures; summaries include skipped cameras. Cached thumbnails show their saved timestamp. Nested JSON error strings are decoded for readability. Tests cover pacing/cancellation, unknown-outcome stopping, error decoding and pause estimates. No live camera calls were made; the pause is not a verified fix for the server's 405 response.

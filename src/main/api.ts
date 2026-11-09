@@ -1,8 +1,10 @@
+export class CaptureOutcomeUnknown extends Error {}
 const BASE = "https://mypagesapi.sectoralarm.net";
 export class ApiError extends Error {
   constructor(
     message: string,
     public status = 0,
+    public details?: { serverMessage?: string; allowedMethods?: string[] },
   ) {
     super(message);
   }
@@ -14,6 +16,7 @@ export interface Meter {
 }
 export class SectorApi {
   private token = "";
+  private overrideHour = -1;
   private expires = 0;
   private credentials?: { email: string; password: string };
   private renewing?: Promise<void>;
@@ -23,9 +26,28 @@ export class SectorApi {
     private fetcher: typeof fetch = fetch,
   ) {}
   clear() {
+    this.overrideHour = -1;
     this.token = "";
     this.expires = 0;
     this.credentials = undefined;
+  }
+  get budget() {
+    this.roll();
+    const override = this.overrideHour === this.meter.hour;
+    return {
+      used: this.meter.used,
+      limit: 44,
+      override,
+      localPaused: this.meter.used >= 44 && !override,
+      serverPaused: Date.now() < this.meter.blockedUntil,
+      resetsAt: new Date((this.meter.hour + 1) * 3600000).toISOString(),
+    };
+  }
+  setBudgetOverride(enabled: boolean) {
+    if (typeof enabled !== "boolean")
+      throw new Error("Invalid budget setting.");
+    this.roll();
+    this.overrideHour = enabled ? this.meter.hour : -1;
   }
   get used() {
     this.roll();
@@ -82,13 +104,19 @@ export class SectorApi {
     body?: unknown,
     auth = true,
     retry = true,
+    timeoutMs = 20000,
   ): Promise<any> {
     if (auth && (!this.token || Date.now() >= this.expires)) {
       if (!this.credentials) throw new ApiError("Sign in to reconnect.", 401);
       await this.authenticate();
     }
     this.roll();
-    if (Date.now() < this.meter.blockedUntil || this.meter.used >= 44)
+    if (Date.now() < this.meter.blockedUntil)
+      throw new ApiError(
+        "Sector Alarm has paused requests. The local override cannot bypass its rate limit. Wait until the next hour.",
+        429,
+      );
+    if (this.budget.localPaused)
       throw new ApiError(
         "Request budget paused until the next hour. Last-known data remains visible.",
         429,
@@ -107,7 +135,7 @@ export class SectorApi {
           ...(auth ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(timeoutMs),
         redirect: "error",
       });
     } catch {
@@ -125,7 +153,58 @@ export class SectorApi {
       await this.authenticate();
       return this.request(path, undefined, true, false);
     }
-    if (!response.ok)
+    if (!response.ok) {
+      let details: ApiError["details"];
+      if (
+        path.includes("/takepicture") ||
+        path.startsWith("/api/Panel/TakePicture?")
+      ) {
+        // Capture diagnostics stay in memory/UI, never in request logs or photo metadata.
+        const body = (await response.text().catch(() => "")).slice(0, 4096);
+        let message = "";
+        try {
+          let value = JSON.parse(body);
+          for (let i = 0; i < 2 && typeof value === "string"; i++) {
+            try {
+              value = JSON.parse(value);
+            } catch {
+              break;
+            }
+          }
+          message =
+            typeof value === "string"
+              ? value
+              : [
+                  value?.detail,
+                  value?.message,
+                  value?.Message,
+                  value?.title,
+                  value?.error?.message,
+                  value?.error,
+                  value?.code,
+                ].find((v) => typeof v === "string") || "";
+        } catch {
+          if (!body.trim().startsWith("<")) message = body;
+        }
+        details = {
+          serverMessage:
+            message.replace(/[\r\n\t]+/g, " ").slice(0, 300) || undefined,
+          allowedMethods: (response.headers.get("allow") || "")
+            .split(",")
+            .map((v) => v.trim().toUpperCase())
+            .filter((v) =>
+              [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS",
+                "HEAD",
+              ].includes(v),
+            ),
+        };
+      }
       throw new ApiError(
         response.status === 401
           ? "Session expired. Sign in again."
@@ -137,7 +216,9 @@ export class SectorApi {
                 ? "This panel does not support this capability."
                 : `Sector Alarm request failed (${response.status}).`,
         response.status,
+        details,
       );
+    }
     const text = await response.text();
     if (!text) return null;
     try {
