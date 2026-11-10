@@ -20,6 +20,7 @@ const bridge: Bridge = {
   demo: invoke("demo"),
   refresh: invoke("refresh"),
   login: invoke("login"),
+  savedAccount: invoke("savedAccount"),
   savedLogin: invoke("savedLogin"),
   select: invoke("select"),
   logout: invoke("logout"),

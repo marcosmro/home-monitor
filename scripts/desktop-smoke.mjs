@@ -12,6 +12,16 @@ const app = await electron.launch({
 });
 try {
   const page = await app.firstWindow();
+  const { bounds, workArea } = await app.evaluate(({ BrowserWindow, screen }) => {
+    const bounds = BrowserWindow.getAllWindows()[0].getBounds();
+    return { bounds, workArea: screen.getDisplayMatching(bounds).workArea };
+  });
+  assert.ok(bounds.x >= workArea.x && bounds.y >= workArea.y);
+  assert.ok(bounds.x + bounds.width <= workArea.x + workArea.width);
+  assert.ok(bounds.y + bounds.height <= workArea.y + workArea.height);
+  await page
+    .getByRole("button", { name: "Start demo mode", exact: true })
+    .click();
   await page.locator(".sensor-row").first().waitFor();
   assert.equal(await page.locator(".sensor-row").count(), 48);
   assert.equal(

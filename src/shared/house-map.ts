@@ -19,6 +19,9 @@ export interface PlanDrawing {
     a: PlanPoint;
     b: PlanPoint;
     swing?: string;
+    sill?: number;
+    head?: number;
+    panes?: number;
   }[];
   details: string[];
 }
@@ -37,6 +40,7 @@ export interface MapPlan {
   width: number;
   height: number;
   drawing?: PlanDrawing;
+  model?: ModelGuide;
 }
 export interface MapRoom {
   id: string;
@@ -177,4 +181,75 @@ export function validatePlacement(
     confirmed: true,
     reason: "Location confirmed or edited locally.",
   };
+}
+
+export interface VideoReview {
+  seconds: number;
+  until?: number;
+  title: string;
+  finding: string;
+  status: "supported" | "review" | "unknown";
+}
+export interface ModelGuide {
+  scene?: "interior" | "exterior";
+  // Structural points use drawing X/Z pixels and vertical Y metres.
+  surfaces?: {
+    label: string;
+    points: [number, number, number][];
+    kind: "roof" | "ceiling" | "wall" | "glass" | "terrain";
+    color: string;
+  }[];
+  rails?: {
+    a: [number, number, number];
+    b: [number, number, number];
+    height: number;
+    style: "glass" | "metal";
+  }[];
+  posts?: {
+    point: PlanPoint;
+    base: number;
+    top: number;
+    width: number;
+    color: string;
+  }[];
+  ceilingProfiles?: {
+    areaId: string;
+    axis: "x" | "y";
+    start: number;
+    end: number;
+    low: number;
+    high: number;
+  }[];
+  photoReview?: {
+    title: string;
+    finding: string;
+    sources: string[];
+    status: "supported" | "review" | "unknown";
+  }[];
+  pixelsPerMetre: number;
+  defaultHeight: number;
+  excludedAreas?: string[];
+  areaLevels?: Record<string, number>;
+  areaHeights?: Record<string, number>;
+  stairs?: {
+    x: number;
+    y: number;
+    width: number;
+    depth: number;
+    from: number;
+    to: number;
+    steps: number;
+  }[];
+  fixtures?: {
+    label: string;
+    x: number;
+    y: number;
+    width: number;
+    depth: number;
+    base: number;
+    height: number;
+    color: string;
+  }[];
+  notes: string[];
+  review: VideoReview[];
 }

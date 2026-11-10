@@ -1,3 +1,4 @@
+import { useLanguage } from "./i18n";
 import { BudgetNotice } from "./BudgetNotice";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -25,6 +26,7 @@ function PhotoImage({
   large?: boolean;
   zoom?: number;
 }) {
+  const { t } = useLanguage();
   const [src, setSrc] = useState(""),
     [error, setError] = useState("");
   useEffect(() => {
@@ -57,16 +59,21 @@ function PhotoImage({
             setError("Photo could not be decoded");
           }}
           src={src}
-          alt={`${photo.demo ? "Simulated photo" : photo.cameraName}, received ${madrid(photo.receivedAt, true)} Madrid`}
+          alt={t(
+            "{0}, received {1} Madrid",
+            photo.demo ? t("Simulated photo") : photo.cameraName,
+            madrid(photo.receivedAt, true),
+          )}
         />
       ) : (
-        <span>{error || "Loading photo…"}</span>
+        <span>{error ? t(error) : t("Loading photo…")}</span>
       )}
-      {photo.demo && <span className="photo-demo">Simulated photo</span>}
+      {photo.demo && <span className="photo-demo">{t("Simulated photo")}</span>}
     </div>
   );
 }
 function ZoomPhoto({ photo }: { photo: Photo }) {
+  const { t } = useLanguage();
   const [zoom, setZoom] = useState(1);
   const pan = useRef<HTMLDivElement>(null);
   const drag = useRef<{
@@ -80,18 +87,20 @@ function ZoomPhoto({ photo }: { photo: Photo }) {
     <>
       <div className="photo-zoom-toolbar">
         <span>
-          {zoom === 1 ? "Fit to window" : "Drag to pan · double-click to fit"}
+          {zoom === 1
+            ? t("Fit to window")
+            : t("Drag to pan · double-click to fit")}
         </span>
         <button
-          aria-label="Zoom out"
+          aria-label={t("Zoom out")}
           disabled={zoom === 1}
           onClick={() => adjust(zoom - 0.5)}
         >
           −
         </button>
-        <output aria-label="Photo zoom">{Math.round(zoom * 100)}%</output>
+        <output aria-label={t("Photo zoom")}>{Math.round(zoom * 100)}%</output>
         <button
-          aria-label="Zoom in"
+          aria-label={t("Zoom in")}
           disabled={zoom === 4}
           onClick={() => adjust(zoom + 0.5)}
         >
@@ -103,7 +112,7 @@ function ZoomPhoto({ photo }: { photo: Photo }) {
             pan.current?.scrollTo(0, 0);
           }}
         >
-          Fit
+          {t("Fit")}
         </button>
       </div>
       <div
@@ -151,6 +160,7 @@ export function Cameras({
   snap: Snapshot;
   prefs: Preferences;
 }) {
+  const { t } = useLanguage();
   const cameras = snap.devices.filter(isCamera);
   const [now, setNow] = useState(Date.now());
   const viewer = useRef<HTMLDialogElement>(null);
@@ -250,9 +260,14 @@ export function Cameras({
       <div className="section-heading">
         <div>
           <h2>
-            Cameras <span>{cameras.length} cameras</span>
+            {t("Cameras")}{" "}
+            <span>
+              {cameras.length} {t("cameras")}
+            </span>
           </h2>
-          <p className="camera-intro">Snapshots and local photo history.</p>
+          <p className="camera-intro">
+            {t("Snapshots and local photo history.")}
+          </p>
         </div>
         <button
           className="primary"
@@ -266,27 +281,39 @@ export function Cameras({
           }
           onClick={() => void capture(eligible.map((d) => d.id))}
         >
-          <Icon name="camera" /> Capture all
+          <Icon name="camera" /> {t("Capture all")}
           {eligible.length > 0 ? ` (${eligible.length})` : ""}
         </button>
       </div>
       <div className="camera-note">
         <Icon name="clock" />
         <span>
-          One camera at a time · usually 20–30 seconds each · 10-second pause
-          between live captures.{" "}
+          {t(
+            "One camera at a time · usually 20–30 seconds each · 10-second pause between live captures.",
+          )}{" "}
           {snap.demo
-            ? "Demo captures are simulated."
-            : `${snap.requestBudget?.override ? "Local hourly cap overridden" : `${Math.max(0, 44 - snap.requests)} requests left in this app’s hourly budget`}. Each photo uses one request, plus status/authentication checks.`}{" "}
+            ? t("Demo captures are simulated.")
+            : t(
+                "{0}. Each photo uses one request, plus status/authentication checks.",
+                snap.requestBudget?.override
+                  ? t("Local hourly cap overridden")
+                  : t(
+                      "{0} requests left in this app’s hourly budget",
+                      Math.max(0, 44 - snap.requests),
+                    ),
+              )}{" "}
           {snap.readOnly &&
             !snap.demo &&
-            "Photo capture is available while alarm controls remain read-only."}
+            t(
+              "Photo capture is available while alarm controls remain read-only.",
+            )}
         </span>
       </div>
       {!ready && (
         <div className="banner warning">
-          Capture is available when the system is connected and fully armed.
-          Saved photos remain available.
+          {t(
+            "Capture is available when the system is connected and fully armed. Saved photos remain available.",
+          )}
         </div>
       )}
       {error && (
@@ -300,42 +327,65 @@ export function Cameras({
             <strong>
               {job.running
                 ? job.stopping
-                  ? "Finishing current photo…"
+                  ? t("Finishing current photo…")
                   : job.pauseUntil
-                    ? "Pausing before the next camera…"
-                    : `Capturing · ${completed} of ${job.items.length} saved`
-                : `${completed} of ${job.items.length} photos saved${(
-                    [
-                      ["failed", "failed"],
-                      ["unknown", "unknown"],
-                      ["cancelled", "skipped"],
-                    ] as const
-                  )
-                    .map(([state, label]) => {
-                      const count = job.items.filter(
-                        (i) => i.state === state,
-                      ).length;
-                      return count ? ` · ${count} ${label}` : "";
-                    })
-                    .join("")}`}
+                    ? t("Pausing before the next camera…")
+                    : t(
+                        "Capturing · {0} of {1} saved",
+                        completed,
+                        job.items.length,
+                      )
+                : t(
+                    "{0} of {1} photos saved{2}",
+                    completed,
+                    job.items.length,
+                    (
+                      [
+                        ["failed", "failed"],
+                        ["unknown", "unknown"],
+                        ["cancelled", "skipped"],
+                      ] as const
+                    )
+                      .map(([state, label]) => {
+                        const count = job.items.filter(
+                          (i) => i.state === state,
+                        ).length;
+                        return count ? ` · ${count} ${t(label)}` : "";
+                      })
+                      .join(""),
+                  )}
             </strong>
             <span>
               {job.running
                 ? job.pauseUntil
-                  ? `Next camera in ${Math.max(0, Math.ceil((job.pauseUntil - now) / 1000))}s · about ${timeLeft} remaining`
+                  ? t(
+                      "Next camera in {0}s · about {1} remaining",
+                      Math.max(0, Math.ceil((job.pauseUntil - now) / 1000)),
+                      timeLeft,
+                    )
                   : progress.overdue
-                    ? `Taking longer than estimated · current camera ${progress.elapsedSeconds}s elapsed`
-                    : `About ${timeLeft} remaining · estimate, not upload progress`
-                : "No captures are retried automatically."}
+                    ? t(
+                        "Taking longer than estimated · current camera {0}s elapsed",
+                        progress.elapsedSeconds,
+                      )
+                    : t(
+                        "About {0} remaining · estimate, not upload progress",
+                        timeLeft,
+                      )
+                : t("No captures are retried automatically.")}
             </span>
             <div
               className="capture-track"
               role="progressbar"
-              aria-label="Estimated capture progress"
+              aria-label={t("Estimated capture progress")}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={progress.percent}
-              aria-valuetext={`${completed} photos saved${job.running ? `, approximately ${timeLeft} remaining` : ""}`}
+              aria-valuetext={t(
+                "{0} photos saved{1}",
+                completed,
+                job.running ? t(", approximately {0} remaining", timeLeft) : "",
+              )}
             >
               <div style={{ width: `${progress.percent}%` }} />
             </div>
@@ -348,8 +398,8 @@ export function Cameras({
               }
             >
               {job.pauseUntil
-                ? "Stop remaining photos"
-                : "Stop after current photo"}
+                ? t("Stop remaining photos")
+                : t("Stop after current photo")}
             </button>
           )}
         </div>
@@ -378,20 +428,23 @@ export function Cameras({
                       setSelected(latest);
                       setDeleteConfirm(false);
                     }}
-                    aria-label={`View latest photo from ${displayDevice(d, prefs)}`}
+                    aria-label={t(
+                      "View latest photo from {0}",
+                      displayDevice(d, prefs),
+                    )}
                   >
                     <PhotoImage photo={latest} />
                   </button>
                 ) : (
                   <div className="camera-empty">
                     <Icon name="camera" size={32} />
-                    <span>No saved photo yet</span>
+                    <span>{t("No saved photo yet")}</span>
                   </div>
                 )}
                 {item?.state === "capturing" && (
                   <div className="camera-capture-overlay">
                     <span className="capture-spinner" aria-hidden="true" />
-                    <span>Capturing…</span>
+                    <span>{t("Capturing…")}</span>
                   </div>
                 )}
               </div>
@@ -403,8 +456,8 @@ export function Cameras({
                 {latest && (
                   <p className="camera-photo-time">
                     {item && item.state !== "saved"
-                      ? "Previous photo"
-                      : "Latest saved photo"}{" "}
+                      ? t("Previous photo")
+                      : t("Latest saved photo")}{" "}
                     · {madrid(latest.receivedAt, true)}
                   </p>
                 )}
@@ -414,16 +467,16 @@ export function Cameras({
                   >
                     {item
                       ? {
-                          queued: "Waiting",
-                          capturing: "Taking photo…",
-                          saved: "Saved locally",
-                          failed: "Capture failed",
-                          unknown: "Outcome unknown",
-                          cancelled: "Skipped",
+                          queued: t("Waiting"),
+                          capturing: t("Taking photo…"),
+                          saved: t("Saved locally"),
+                          failed: t("Capture failed"),
+                          unknown: t("Outcome unknown"),
+                          cancelled: t("Skipped"),
                         }[item.state]
                       : d.offline || d.active === false
-                        ? "Unavailable"
-                        : "Ready to capture"}
+                        ? t("Unavailable")
+                        : t("Ready to capture")}
                   </span>
                   <button
                     disabled={
@@ -437,7 +490,7 @@ export function Cameras({
                     }
                     onClick={() => void capture([d.id])}
                   >
-                    Take photo
+                    {t("Take photo")}
                   </button>
                 </div>
                 {item?.message && (
@@ -450,27 +503,31 @@ export function Cameras({
       </div>
       {!cameras.length && (
         <div className="empty">
-          No photo cameras were returned for this property.
+          {t("No photo cameras were returned for this property.")}
         </div>
       )}
       <div className="section-heading gallery-heading">
         <div>
           <h2>
-            Photo history <span>{total} saved</span>
+            {t("Photo history")}{" "}
+            <span>
+              {total} {t("saved")}
+            </span>
           </h2>
           <p className="camera-intro">
-            Newest first · received time in Europe/Madrid · stored until you
-            delete them
+            {t(
+              "Newest first · received time in Europe/Madrid · stored until you delete them",
+            )}
           </p>
         </div>
         <label>
-          Camera{" "}
+          {t("Camera")}{" "}
           <select
-            aria-label="Filter photo history by camera"
+            aria-label={t("Filter photo history by camera")}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           >
-            <option value="all">All cameras</option>
+            <option value="all">{t("All cameras")}</option>
             {[
               ...new Map([
                 ...cameras.map(
@@ -513,8 +570,12 @@ export function Cameras({
       ) : (
         <div className="empty">
           {total
-            ? "No photos from this camera in the loaded history. Load older photos below."
-            : "Your captures will appear here. No cloud photo library is downloaded."}
+            ? t(
+                "No photos from this camera in the loaded history. Load older photos below.",
+              )
+            : t(
+                "Your captures will appear here. No cloud photo library is downloaded.",
+              )}
         </div>
       )}
       {photos.length < total && (
@@ -528,19 +589,24 @@ export function Cameras({
             })
           }
         >
-          Load older photos ({photos.length} of {total})
+          {t("Load older photos (")}
+          {photos.length} {t("of")} {total})
         </button>
       )}
       <p className="camera-storage">
         {window.home
-          ? "Stored privately in Home Monitor’s local application-data folder. Export a photo to save a copy elsewhere. "
-          : "Browser demo: photos are held in memory for this preview only. The desktop app saves them to disk."}
+          ? t(
+              "Stored privately in Home Monitor’s local application-data folder. Export a photo to save a copy elsewhere. ",
+            )
+          : t(
+              "Browser demo: photos are held in memory for this preview only. The desktop app saves them to disk.",
+            )}
       </p>
       {selected && (
         <dialog
           ref={viewer}
           className="photo-dialog"
-          aria-label="Saved photo"
+          aria-label={t("Saved photo")}
           onCancel={() => setSelected(undefined)}
         >
           <section
@@ -551,14 +617,14 @@ export function Cameras({
               <div>
                 <h2>{selected.cameraName}</h2>
                 <p>
-                  {selected.room} · received {madrid(selected.receivedAt, true)}{" "}
-                  Madrid
+                  {selected.room} {t("· received")}{" "}
+                  {madrid(selected.receivedAt, true)} Madrid
                 </p>
               </div>
               <button
                 autoFocus
                 onClick={() => setSelected(undefined)}
-                aria-label="Close photo"
+                aria-label={t("Close photo")}
               >
                 ×
               </button>
@@ -572,7 +638,9 @@ export function Cameras({
             <div className="photo-viewer-actions">
               <span>
                 {(selected.bytes / 1024).toFixed(0)} KB ·{" "}
-                {selected.demo ? "Simulated image" : "Original camera image"}
+                {selected.demo
+                  ? t("Simulated image")
+                  : t("Original camera image")}
               </span>
               <button
                 disabled={busy || !window.home}
@@ -580,17 +648,17 @@ export function Cameras({
                   void action(() => bridge.exportPhoto(selected.id))
                 }
               >
-                Export photo…
+                {t("Export photo…")}
               </button>
               <button disabled={busy} onClick={() => setDeleteConfirm(true)}>
-                Delete…
+                {t("Delete…")}
               </button>
             </div>
             {deleteConfirm && (
               <div className="photo-delete">
-                <span>Permanently delete this local photo?</span>
+                <span>{t("Permanently delete this local photo?")}</span>
                 <button onClick={() => setDeleteConfirm(false)}>
-                  Keep photo
+                  {t("Keep photo")}
                 </button>
                 <button
                   disabled={busy}
@@ -603,7 +671,7 @@ export function Cameras({
                     })
                   }
                 >
-                  Delete permanently
+                  {t("Delete permanently")}
                 </button>
               </div>
             )}

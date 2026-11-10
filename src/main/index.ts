@@ -8,6 +8,7 @@ import {
   powerMonitor,
   dialog,
   nativeImage,
+  screen,
 } from "electron";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -58,6 +59,7 @@ async function remember(email: string, password: string) {
 function validatePreferences(p: Preferences) {
   if (
     !p ||
+    (p.language !== undefined && !["en", "es"].includes(p.language)) ||
     !["light", "dark", "system"].includes(p.theme) ||
     !["compact", "comfortable"].includes(p.density) ||
     !["original", "spanish"].includes(p.names) ||
@@ -117,11 +119,20 @@ app.whenReady().then(async () => {
   const dev = process.env.ELECTRON_RENDERER_URL;
   const renderer = join(import.meta.dirname, "../renderer/index.html");
   const allowed = dev || pathToFileURL(renderer).href;
+  // Electron work areas use logical pixels and exclude the Dock/taskbar.
+  // Choose the display being used at launch, including external displays.
+  const { workArea } = screen.getDisplayNearestPoint(
+    screen.getCursorScreenPoint(),
+  );
+  const width = Math.min(1800, Math.max(1, workArea.width - 32));
+  const height = Math.min(1200, Math.max(1, workArea.height - 32));
   win = new BrowserWindow({
-    width: 1512,
-    height: 1000,
-    minWidth: 960,
-    minHeight: 680,
+    x: workArea.x + Math.floor((workArea.width - width) / 2),
+    y: workArea.y + Math.floor((workArea.height - height) / 2),
+    width,
+    height,
+    minWidth: Math.min(960, width),
+    minHeight: Math.min(680, height),
     title: "Home Monitor",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 20, y: 19 },
@@ -186,6 +197,24 @@ app.whenReady().then(async () => {
       const panels = await monitor.login(email, password);
       if (save) await remember(email, password);
       return panels;
+    },
+    savedAccount: async () => {
+      try {
+        const stored = await read("credentials.secure.json");
+        if (!stored?.encrypted) return null;
+        const { result } = await safeStorage.decryptStringAsync(
+          Buffer.from(stored.encrypted, "base64"),
+        );
+        const credentials = JSON.parse(result);
+        return typeof credentials.email === "string" &&
+          credentials.email &&
+          typeof credentials.password === "string" &&
+          credentials.password
+          ? { email: credentials.email }
+          : null;
+      } catch {
+        return null;
+      }
     },
     savedLogin: async () => {
       const stored = await read("credentials.secure.json");

@@ -107,3 +107,21 @@ An isolated Electron demo-profile check decoded all four imported private JPEG p
 Added native SVG geometry rendering, source-plan comparison, opening labels and direct assignment, photo-derived camera hints, editable/persistent direction, and archived reference-photo viewing. Coordinate transforms retain the original image coordinate system so cropping the redraw does not move saved positions. Existing local overrides take precedence over updated suggestions.
 
 100 core tests pass, including matching camera-only hints, preserved direction and rejected invalid angles. The 13 existing browser scenarios pass; an additional scenario verifies vector/source switching, opening assignment and direction persistence. A private isolated desktop profile rendered the four traced plans and exercised five photo hints, native image loading, enlarged photo dialog, direction persistence, opening placement, original/redraw toggling, and 1024px dark layout without horizontal overflow. No live requests or new captures were made. Private preview files remain ignored. Direction fans are illustrative and camera locations remain inferred, with varying confidence; they are not surveyed positions or measured coverage.
+
+## Video-informed estimated 3D view
+
+103 core tests and 15 browser scenarios pass. Mesh tests cover straight/relative wall paths, rejected unsupported commands, open doorways and lintels, cutaway wall heights, void exclusion, raised floors and finite metre-based OBJ export. Browser verification covers orbit changes, ceiling-height input, downloaded OBJ content and return to editable 2D. An isolated desktop profile rendered all four private models with timestamped review panels and exercised 3D/2D switching with zero live requests. Private video frames, review notes, model guides and exported meshes stay under the ignored local house directory.
+
+The supplied video was sampled at four-second intervals across its 5:18 duration, with selected frames inspected separately. The user did not know its date or measured ceiling heights and explicitly requested estimates. Evidence supports double-height/staggered circulation; source-plan discrepancies and unresolved room/opening matches are recorded rather than silently asserted correct. Sensor dots are floor-projected markers, not estimated installation heights or visibility coverage. Separate plan models are not a registered whole-house survey.
+
+## Photo-informed structural refinement
+
+Reviewed 43 images and two short clips, separating architectural evidence from duplicates, maintenance close-ups and images with unclear processing history. Private source triage and per-area observations remain in the ignored house directory. Added sloping wall profiles, optional roof surfaces, metal/glass guards, supports, window frames/mullions, stacked internal glazing, fireplace and soffit volumes. Existing saved sensor overrides are preserved.
+
+106 core tests and 15 browser scenarios pass. Mesh coverage includes concave floor triangulation, sloped caps, roof inclusion, rails/supports and vertically separated openings. Native verification renders all four private models, toggles roof surfaces and returns to 2D with zero live requests. Heights, roof pitch and cross-plan registration remain approximate; these are separate architectural models, not a measured whole-house scan.
+
+## Exterior property study
+
+The isolated exterior scene supports sloping terrain surfaces, starts with its roof visible, and hides interior-only cutaway/default-ceiling controls. An orthographic software depth buffer resolves facade details against long exterior walls and terrain without network textures or a WebGL dependency. A synthetic mesh check verifies exterior labels and terrain elevations without duplicate flat floors. Native demo verification covers exterior roof defaults/toggling, orbit, original local site sketch, and zero live requests. The source-specific model and Google Maps review stay private; imagery is not embedded or packaged. Ownership boundaries, site dimensions and terrain heights remain provisional, and interior sensor coordinates are not transferred to the exterior envelope.
+
+108 core tests pass, including per-pixel facade occlusion independent of triangle submission order and transparent background pixels. Type checking and production build pass.

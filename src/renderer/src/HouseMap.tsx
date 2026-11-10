@@ -1,3 +1,5 @@
+import { useLanguage } from "./i18n";
+import { HouseModel3D } from "./HouseModel3D";
 import { PlanDrawing } from "./PlanDrawing";
 import { isCamera } from "../../shared/cameras";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -40,6 +42,7 @@ export function HouseMap({
   snap: Snapshot;
   prefs: Preferences;
 }) {
+  const { t } = useLanguage();
   const [data, setData] = useState<HouseMapData>(),
     [error, setError] = useState("");
   const [planId, setPlanId] = useState(""),
@@ -47,6 +50,7 @@ export function HouseMap({
     [zoom, setZoom] = useState(1),
     [edit, setEdit] = useState(false);
   const photoDialog = useRef<HTMLDialogElement>(null);
+  const [threeD, setThreeD] = useState(false);
   const [reference, setReference] = useState(false);
   const [showOpenings, setShowOpenings] = useState(true);
   const [photo, setPhoto] = useState("");
@@ -115,7 +119,7 @@ export function HouseMap({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [data]);
+  }, [data, threeD]);
   const suggested = useMemo(
     () => (data ? suggestPlacements(snap.devices, data) : {}),
     [snap.devices, data?.rooms],
@@ -201,7 +205,7 @@ export function HouseMap({
                   ? {
                       ...p,
                       confirmed: true,
-                      reason: "Location confirmed or edited locally.",
+                      reason: t("Location confirmed or edited locally."),
                     }
                   : null,
               },
@@ -239,22 +243,22 @@ export function HouseMap({
         ? { heading: placement.heading }
         : {}),
       confirmed: true,
-      reason: "Position edited locally.",
+      reason: t("Position edited locally."),
     };
   }
   if (!data)
     return (
       <section className="house-map">
-        <h2>House map</h2>
-        <p>{error || "Loading local plans…"}</p>
+        <h2>{t("House map")}</h2>
+        <p>{error || t("Loading local plans…")}</p>
       </section>
     );
   if (!data.plans.length)
     return (
       <section className="house-map">
-        <h2>House map</h2>
+        <h2>{t("House map")}</h2>
         <div className="empty">
-          No local floor plans have been imported on this Mac.
+          {t("No local floor plans have been imported on this Mac.")}
         </div>
       </section>
     );
@@ -263,25 +267,36 @@ export function HouseMap({
       <div className="section-heading">
         <div>
           <h2>
-            House map <span>{snap.devices.length} sensors</span>
+            {t("House map")}{" "}
+            <span>
+              {snap.devices.length} {t("sensors")}
+            </span>
           </h2>
           <p className="camera-intro">
-            {pending} suggested · {snap.devices.length - unplaced - pending}{" "}
-            confirmed · {unplaced} unplaced
+            {pending} {t("suggested ·")}{" "}
+            {snap.devices.length - unplaced - pending} {t("confirmed ·")}{" "}
+            {unplaced} {t("unplaced")}
           </p>
         </div>
         <button
           className={edit ? "primary" : ""}
           aria-pressed={edit}
-          onClick={() => setEdit(!edit)}
+          onClick={() => {
+            setThreeD(false);
+            setEdit(!edit);
+          }}
         >
-          {edit ? "Finish editing" : "Edit locations"}
+          {edit ? t("Finish editing") : t("Edit locations")}
         </button>
       </div>
       <div className="map-guidance">
         {edit
-          ? "Select a sensor, then click the plan or drag its marker. You can change plans before placing it. Arrow keys move a focused marker."
-          : "Dashed markers are suggested positions, not verified mounting points. Select a sensor to review or confirm it."}
+          ? t(
+              "Select a sensor, then click the plan or drag its marker. You can change plans before placing it. Arrow keys move a focused marker.",
+            )
+          : t(
+              "Dashed markers are suggested positions, not verified mounting points. Select a sensor to review or confirm it.",
+            )}
       </div>
       {error && (
         <div className="banner warning" role="alert">
@@ -292,7 +307,7 @@ export function HouseMap({
         <div className="map-board">
           <div className="map-toolbar">
             <select
-              aria-label="Floor plan"
+              aria-label={t("Floor plan")}
               value={planId}
               onChange={(e) => setPlanId(e.target.value)}
             >
@@ -305,267 +320,307 @@ export function HouseMap({
             {current?.drawing && (
               <>
                 <button
-                  aria-pressed={reference}
-                  onClick={() => setReference(!reference)}
+                  aria-pressed={threeD}
+                  onClick={() => {
+                    setThreeD(!threeD);
+                    setEdit(false);
+                  }}
                 >
-                  {reference ? "Show redraw" : "Original plan"}
+                  {threeD ? t("2D plan") : t("3D model")}
+                </button>
+                <button
+                  aria-pressed={reference}
+                  onClick={() => {
+                    setReference(!reference);
+                    setThreeD(false);
+                  }}
+                >
+                  {reference
+                    ? t("Show redraw")
+                    : current.model?.scene === "exterior"
+                      ? t("Site sketch")
+                      : t("Original plan")}
                 </button>
                 <button
                   aria-pressed={showOpenings}
                   onClick={() => setShowOpenings(!showOpenings)}
                 >
-                  Opening labels
+                  {t("Opening labels")}
                 </button>
               </>
             )}
-            <span className="map-toolbar-spacer" />
-            <button
-              aria-label="Zoom map out"
-              disabled={zoom <= 1}
-              onClick={() => setZoom(Math.max(1, zoom - 0.5))}
-            >
-              −
-            </button>
-            <output>{Math.round(zoom * 100)}%</output>
-            <button
-              aria-label="Zoom map in"
-              disabled={zoom >= 4}
-              onClick={() => setZoom(Math.min(4, zoom + 0.5))}
-            >
-              +
-            </button>
-            <button
-              onClick={() => {
-                setZoom(1);
-                viewport.current?.scrollTo(0, 0);
-              }}
-            >
-              Fit plan
-            </button>
+            {!threeD && (
+              <>
+                <span className="map-toolbar-spacer" />
+                <button
+                  aria-label={t("Zoom map out")}
+                  disabled={zoom <= 1}
+                  onClick={() => setZoom(Math.max(1, zoom - 0.5))}
+                >
+                  −
+                </button>
+                <output>{Math.round(zoom * 100)}%</output>
+                <button
+                  aria-label={t("Zoom map in")}
+                  disabled={zoom >= 4}
+                  onClick={() => setZoom(Math.min(4, zoom + 0.5))}
+                >
+                  +
+                </button>
+                <button
+                  onClick={() => {
+                    setZoom(1);
+                    viewport.current?.scrollTo(0, 0);
+                  }}
+                >
+                  {t("Fit plan")}
+                </button>
+              </>
+            )}
           </div>
-          <div
-            ref={viewport}
-            className={`map-viewport ${edit ? "editing" : ""}`}
-            onPointerDown={(e) => {
-              if (edit || (e.target as HTMLElement).closest(".map-pin")) return;
-              pan.current = {
-                x: e.clientX,
-                y: e.clientY,
-                left: e.currentTarget.scrollLeft,
-                top: e.currentTarget.scrollTop,
-              };
-              e.currentTarget.setPointerCapture(e.pointerId);
-            }}
-            onPointerMove={(e) => {
-              if (pan.current) {
-                e.currentTarget.scrollLeft =
-                  pan.current.left + pan.current.x - e.clientX;
-                e.currentTarget.scrollTop =
-                  pan.current.top + pan.current.y - e.clientY;
-              }
-            }}
-            onPointerUp={() => {
-              pan.current = null;
-            }}
-            onPointerCancel={() => {
-              pan.current = null;
-            }}
-          >
+          {threeD && current ? (
+            <HouseModel3D
+              key={current.id}
+              plan={current}
+              devices={snap.devices}
+              places={places}
+              prefs={prefs}
+              onSelect={select}
+              online={snap.online}
+            />
+          ) : (
             <div
-              ref={canvas}
-              className="map-canvas"
-              style={{
-                width,
-                height: current ? (width * bounds[3]) / bounds[2] : 600,
+              ref={viewport}
+              className={`map-viewport ${edit ? "editing" : ""}`}
+              onPointerDown={(e) => {
+                if (edit || (e.target as HTMLElement).closest(".map-pin"))
+                  return;
+                pan.current = {
+                  x: e.clientX,
+                  y: e.clientY,
+                  left: e.currentTarget.scrollLeft,
+                  top: e.currentTarget.scrollTop,
+                };
+                e.currentTarget.setPointerCapture(e.pointerId);
               }}
               onPointerMove={(e) => {
-                if (
-                  drag.current &&
-                  (drag.current.moved ||
-                    Math.hypot(
-                      e.clientX - drag.current.startX,
-                      e.clientY - drag.current.startY,
-                    ) > 3)
-                ) {
-                  drag.current.moved = true;
-                  const p = point(e.clientX, e.clientY);
-                  drag.current.p = p;
-                  setDraft({ id: drag.current.id, p });
+                if (pan.current) {
+                  e.currentTarget.scrollLeft =
+                    pan.current.left + pan.current.x - e.clientX;
+                  e.currentTarget.scrollTop =
+                    pan.current.top + pan.current.y - e.clientY;
                 }
               }}
-              onPointerUp={(e) => {
-                if (drag.current) {
-                  e.stopPropagation();
-                  const move = drag.current;
-                  drag.current = null;
-                  if (move.moved) {
-                    void save(move.id, move.p);
-                  }
-                }
+              onPointerUp={() => {
+                pan.current = null;
               }}
               onPointerCancel={() => {
-                drag.current = null;
-                setDraft(undefined);
-              }}
-              onPointerDown={(e) => {
-                if (
-                  edit &&
-                  selected &&
-                  !saving &&
-                  !(e.target as HTMLElement).closest(".map-pin")
-                )
-                  void save(selected, point(e.clientX, e.clientY));
+                pan.current = null;
               }}
             >
-              {current?.drawing && !reference ? (
-                <PlanDrawing plan={current} openings={showOpenings} />
-              ) : image ? (
-                <img
-                  className="map-plan-image"
-                  src={image}
-                  alt={`${current?.label} floor plan`}
-                  draggable={false}
-                />
-              ) : (
-                <div className="empty">Loading plan…</div>
-              )}
-              <svg
-                className="map-camera-directions"
-                viewBox={bounds.join(" ")}
-                aria-hidden="true"
-              >
-                {snap.devices
-                  .filter(
-                    (d) =>
-                      isCamera(d) &&
-                      places[d.id]?.planId === planId &&
-                      places[d.id]?.heading !== undefined,
+              <div
+                ref={canvas}
+                className="map-canvas"
+                style={{
+                  width,
+                  height: current ? (width * bounds[3]) / bounds[2] : 600,
+                }}
+                onPointerMove={(e) => {
+                  if (
+                    drag.current &&
+                    (drag.current.moved ||
+                      Math.hypot(
+                        e.clientX - drag.current.startX,
+                        e.clientY - drag.current.startY,
+                      ) > 3)
+                  ) {
+                    drag.current.moved = true;
+                    const p = point(e.clientX, e.clientY);
+                    drag.current.p = p;
+                    setDraft({ id: drag.current.id, p });
+                  }
+                }}
+                onPointerUp={(e) => {
+                  if (drag.current) {
+                    e.stopPropagation();
+                    const move = drag.current;
+                    drag.current = null;
+                    if (move.moved) {
+                      void save(move.id, move.p);
+                    }
+                  }
+                }}
+                onPointerCancel={() => {
+                  drag.current = null;
+                  setDraft(undefined);
+                }}
+                onPointerDown={(e) => {
+                  if (
+                    edit &&
+                    selected &&
+                    !saving &&
+                    !(e.target as HTMLElement).closest(".map-pin")
                   )
+                    void save(selected, point(e.clientX, e.clientY));
+                }}
+              >
+                {current?.drawing && !reference ? (
+                  <PlanDrawing plan={current} openings={showOpenings} />
+                ) : image ? (
+                  <img
+                    className="map-plan-image"
+                    src={image}
+                    alt={t("{0} floor plan", current?.label || "")}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="empty">{t("Loading plan…")}</div>
+                )}
+                <svg
+                  className="map-camera-directions"
+                  viewBox={bounds.join(" ")}
+                  aria-hidden="true"
+                >
+                  {snap.devices
+                    .filter(
+                      (d) =>
+                        isCamera(d) &&
+                        places[d.id]?.planId === planId &&
+                        places[d.id]?.heading !== undefined,
+                    )
+                    .map((d) => {
+                      const p = places[d.id]!;
+                      return (
+                        <g
+                          key={d.id}
+                          transform={`translate(${p.x * current!.width} ${p.y * current!.height}) rotate(${p.heading})`}
+                        >
+                          <path
+                            d="M0,0 L90,-38 A98,98 0 0 1 90,38 Z"
+                            className={
+                              selected === d.id
+                                ? "camera-direction selected"
+                                : "camera-direction"
+                            }
+                          />
+                          <path
+                            d="M8,0 H75 M68,-5 L75,0 L68,5"
+                            className="camera-direction-arrow"
+                          />
+                        </g>
+                      );
+                    })}
+                </svg>
+                {snap.devices
+                  .filter((d) => places[d.id]?.planId === planId)
                   .map((d) => {
-                    const p = places[d.id]!;
+                    const p = places[d.id]!,
+                      name = displayDevice(d, prefs);
                     return (
-                      <g
+                      <button
                         key={d.id}
-                        transform={`translate(${p.x * current!.width} ${p.y * current!.height}) rotate(${p.heading})`}
-                      >
-                        <path
-                          d="M0,0 L90,-38 A98,98 0 0 1 90,38 Z"
-                          className={
-                            selected === d.id
-                              ? "camera-direction selected"
-                              : "camera-direction"
+                        className={`map-pin ${markerTone(d, snap)} ${p.confirmed ? "confirmed" : "suggested"} ${selected === d.id ? "selected" : ""}`}
+                        style={position(p)}
+                        aria-label={t(
+                          "{0}, {1}, {2}, {3}, {4} location",
+                          name,
+                          location(d, prefs).room,
+                          t(deviceState(d)),
+                          t(deviceHealth(d)),
+                          p.confirmed ? t("confirmed") : t("suggested"),
+                        )}
+                        title={`${name} · ${t(deviceState(d))} · ${p.confirmed ? t("Confirmed") : t("Suggested")}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected(d.id);
+                        }}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          setSelected(d.id);
+                          if (edit && !saving) {
+                            drag.current = {
+                              id: d.id,
+                              p,
+                              startX: e.clientX,
+                              startY: e.clientY,
+                              moved: false,
+                            };
+                            canvas.current?.setPointerCapture(e.pointerId);
                           }
-                        />
-                        <path
-                          d="M8,0 H75 M68,-5 L75,0 L68,5"
-                          className="camera-direction-arrow"
-                        />
-                      </g>
+                        }}
+                        onKeyDown={(e) => {
+                          if (
+                            edit &&
+                            !saving &&
+                            [
+                              "ArrowLeft",
+                              "ArrowRight",
+                              "ArrowUp",
+                              "ArrowDown",
+                            ].includes(e.key)
+                          ) {
+                            e.preventDefault();
+                            const delta = e.shiftKey ? 0.02 : 0.005;
+                            void save(d.id, {
+                              ...p,
+                              x: Math.max(
+                                0.01,
+                                Math.min(
+                                  0.99,
+                                  p.x +
+                                    (e.key === "ArrowLeft"
+                                      ? -delta
+                                      : e.key === "ArrowRight"
+                                        ? delta
+                                        : 0),
+                                ),
+                              ),
+                              y: Math.max(
+                                0.01,
+                                Math.min(
+                                  0.99,
+                                  p.y +
+                                    (e.key === "ArrowUp"
+                                      ? -delta
+                                      : e.key === "ArrowDown"
+                                        ? delta
+                                        : 0),
+                                ),
+                              ),
+                            });
+                          }
+                        }}
+                      >
+                        <Icon name={deviceIcon(d.type)} size={14} />
+                        {d.mountIndex !== undefined && (
+                          <small>{d.mountIndex}</small>
+                        )}
+                      </button>
                     );
                   })}
-              </svg>
-              {snap.devices
-                .filter((d) => places[d.id]?.planId === planId)
-                .map((d) => {
-                  const p = places[d.id]!,
-                    name = displayDevice(d, prefs);
-                  return (
-                    <button
-                      key={d.id}
-                      className={`map-pin ${markerTone(d, snap)} ${p.confirmed ? "confirmed" : "suggested"} ${selected === d.id ? "selected" : ""}`}
-                      style={position(p)}
-                      aria-label={`${name}, ${location(d, prefs).room}, ${deviceState(d)}, ${deviceHealth(d)}, ${p.confirmed ? "confirmed" : "suggested"} location`}
-                      title={`${name} · ${deviceState(d)} · ${p.confirmed ? "Confirmed" : "Suggested"}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelected(d.id);
-                      }}
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-                        setSelected(d.id);
-                        if (edit && !saving) {
-                          drag.current = {
-                            id: d.id,
-                            p,
-                            startX: e.clientX,
-                            startY: e.clientY,
-                            moved: false,
-                          };
-                          canvas.current?.setPointerCapture(e.pointerId);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (
-                          edit &&
-                          !saving &&
-                          [
-                            "ArrowLeft",
-                            "ArrowRight",
-                            "ArrowUp",
-                            "ArrowDown",
-                          ].includes(e.key)
-                        ) {
-                          e.preventDefault();
-                          const delta = e.shiftKey ? 0.02 : 0.005;
-                          void save(d.id, {
-                            ...p,
-                            x: Math.max(
-                              0.01,
-                              Math.min(
-                                0.99,
-                                p.x +
-                                  (e.key === "ArrowLeft"
-                                    ? -delta
-                                    : e.key === "ArrowRight"
-                                      ? delta
-                                      : 0),
-                              ),
-                            ),
-                            y: Math.max(
-                              0.01,
-                              Math.min(
-                                0.99,
-                                p.y +
-                                  (e.key === "ArrowUp"
-                                    ? -delta
-                                    : e.key === "ArrowDown"
-                                      ? delta
-                                      : 0),
-                              ),
-                            ),
-                          });
-                        }
-                      }}
-                    >
-                      <Icon name={deviceIcon(d.type)} size={14} />
-                      {d.mountIndex !== undefined && (
-                        <small>{d.mountIndex}</small>
-                      )}
-                    </button>
-                  );
-                })}
+              </div>
             </div>
-          </div>
+          )}
           <div className="map-legend">
-            <span>● Alarm</span>
-            <span>● Open / attention</span>
-            <span>● Closed & healthy</span>
-            <span>● Unknown / offline / stale</span>
+            <span>{t("● Alarm")}</span>
+            <span>{t("● Open / attention")}</span>
+            <span>{t("● Closed & healthy")}</span>
+            <span>{t("● Unknown / offline / stale")}</span>
             <small>
-              Blue = glazing · brown = door swing · V/P labels identify
-              openings, not API sensor numbers · camera arrows show inferred
-              direction, not measured coverage
+              {t(
+                "Blue = glazing · brown = door swing · V/P labels identify openings, not API sensor numbers · camera arrows show inferred direction, not measured coverage",
+              )}
             </small>
           </div>
         </div>
-        <aside className="map-sidebar" aria-label="Map sensors">
+        <aside className="map-sidebar" aria-label={t("Map sensors")}>
           {device ? (
             <div className="map-selection">
               <div className="panel-heading">
                 <h3>{displayDevice(device, prefs)}</h3>
                 <button
                   className="icon-button"
-                  aria-label="Close sensor selection"
+                  aria-label={t("Close sensor selection")}
                   onClick={() => setSelected("")}
                 >
                   ×
@@ -575,39 +630,43 @@ export function HouseMap({
                 {location(device, prefs).floor} · {location(device, prefs).room}
               </p>
               <div className="map-state">
-                <strong>{deviceState(device)}</strong>
-                <span>{deviceHealth(device)}</span>
+                <strong>{t(deviceState(device))}</strong>
+                <span>{t(deviceHealth(device))}</span>
               </div>
               <p>
                 {temperatureText(device.temperature)}
                 {device.temperature !== undefined ? "C" : ""}
                 {device.temperature !== undefined &&
                 temperatureIsStale(device, snap)
-                  ? " · last known"
+                  ? t(" · last known")
                   : ""}{" "}
-                · Fetched {madrid(device.fetchedAt)} Madrid
+                {t("· Fetched")} {madrid(device.fetchedAt)} Madrid
               </p>
               {hint && (
                 <div className="map-photo-evidence">
                   <strong>
-                    Photo-based placement · {hint.confidence} confidence
+                    {t("Photo-based placement ·")} {hint.confidence}{" "}
+                    {t("confidence")}
                   </strong>
                   {photo ? (
                     <button
                       className="map-photo-button"
-                      aria-label="Enlarge reference photo"
+                      aria-label={t("Enlarge reference photo")}
                       onClick={() => photoDialog.current?.showModal()}
                     >
                       <img
                         src={photo}
-                        alt={`Saved ${location(device, prefs).room} camera view used to infer placement`}
+                        alt={t(
+                          "Saved {0} camera view used to infer placement",
+                          location(device, prefs).room,
+                        )}
                       />
                     </button>
                   ) : (
                     <p>
                       {photoUnavailable || !hint.photoId
-                        ? "Reference photo is no longer available locally."
-                        : "Loading saved reference photo…"}
+                        ? t("Reference photo is no longer available locally.")
+                        : t("Loading saved reference photo…")}
                     </p>
                   )}
                   {photo && (
@@ -620,9 +679,9 @@ export function HouseMap({
                       }}
                     >
                       <button onClick={() => photoDialog.current?.close()}>
-                        Close photo
+                        {t("Close photo")}
                       </button>
-                      <img src={photo} alt="Saved camera reference" />
+                      <img src={photo} alt={t("Saved camera reference")} />
                     </dialog>
                   )}
                   <p>{hint.evidence}</p>
@@ -631,7 +690,7 @@ export function HouseMap({
                       disabled={saving}
                       onClick={() => void save(device.id, suggested[device.id])}
                     >
-                      Use photo-based position
+                      {t("Use photo-based position")}
                     </button>
                   )}
                 </div>
@@ -639,27 +698,32 @@ export function HouseMap({
               <div className="map-placement-note">
                 {placement
                   ? placement.confirmed
-                    ? "Location confirmed locally."
+                    ? t("Location confirmed locally.")
                     : hint
-                      ? "Suggested from the reference photo. Confirm or adjust the position and direction."
+                      ? t(
+                          "Suggested from the reference photo. Confirm or adjust the position and direction.",
+                        )
                       : placement.reason
-                  : "Unplaced. Select Edit locations, choose a plan, and click its position."}
+                  : t(
+                      "Unplaced. Select Edit locations, choose a plan, and click its position.",
+                    )}
               </div>
               {placement && !placement.confirmed && (
                 <button
                   disabled={saving}
                   onClick={() => void save(device.id, placement)}
                 >
-                  Confirm this location
+                  {t("Confirm this location")}
                 </button>
               )}
               {edit && (
                 <>
                   {isCamera(device) && placement && (
                     <label>
-                      Camera direction: {Math.round(placement.heading || 0)}°
+                      {t("Camera direction:")}{" "}
+                      {Math.round(placement.heading || 0)}°
                       <input
-                        aria-label="Camera direction"
+                        aria-label={t("Camera direction")}
                         type="range"
                         min="0"
                         max="359"
@@ -686,15 +750,16 @@ export function HouseMap({
                         }}
                       />
                       <small>
-                        0° right · 90° down · 180° left · 270° up. Direction
-                        only; coverage is not calibrated.
+                        {t(
+                          "0° right · 90° down · 180° left · 270° up. Direction only; coverage is not calibrated.",
+                        )}
                       </small>
                     </label>
                   )}
                   <label>
-                    Room on plan
+                    {t("Room on plan")}
                     <select
-                      aria-label="Assign map room"
+                      aria-label={t("Assign map room")}
                       value={
                         placement?.planId === planId
                           ? placement.roomId || ""
@@ -712,12 +777,15 @@ export function HouseMap({
                             x: room.center[0],
                             y: room.center[1],
                             confirmed: true,
-                            reason:
+                            reason: t(
                               "Room selected locally; move marker to exact position.",
+                            ),
                           });
                       }}
                     >
-                      <option value="">Choose room or click the plan</option>
+                      <option value="">
+                        {t("Choose room or click the plan")}
+                      </option>
                       {data.rooms
                         .filter((r) => r.planId === planId)
                         .map((r) => (
@@ -729,9 +797,9 @@ export function HouseMap({
                   </label>
                   {current?.drawing && (
                     <label>
-                      Place at identified opening
+                      {t("Place at identified opening")}
                       <select
-                        aria-label="Place at identified opening"
+                        aria-label={t("Place at identified opening")}
                         value=""
                         disabled={saving}
                         onChange={(e) => {
@@ -758,11 +826,11 @@ export function HouseMap({
                                 ? { heading: placement.heading }
                                 : {}),
                               confirmed: true,
-                              reason: "Opening selected locally.",
+                              reason: t("Opening selected locally."),
                             });
                         }}
                       >
-                        <option value="">Choose a door or window</option>
+                        <option value="">{t("Choose a door or window")}</option>
                         {current.drawing.openings.map((o) => (
                           <option key={o.id} value={o.id}>
                             {o.id} ·{" "}
@@ -778,36 +846,46 @@ export function HouseMap({
                     disabled={saving || !placement}
                     onClick={() => void save(device.id, null)}
                   >
-                    Remove from map
+                    {t("Remove from map")}
                   </button>
                 </>
               )}
-              {saving && <p role="status">Saving location…</p>}
+              {saving && <p role="status">{t("Saving location…")}</p>}
             </div>
           ) : (
             <div className="map-selection">
-              <h3>Place your sensors</h3>
+              <h3>{t("Place your sensors")}</h3>
               <p>
-                Select a marker or a sensor below. Review suggested positions
-                before relying on them.
+                {t(
+                  "Select a marker or a sensor below. Review suggested positions before relying on them.",
+                )}
               </p>
             </div>
           )}
           <input
-            aria-label="Find a map sensor"
-            placeholder="Find a sensor or room"
+            aria-label={t("Find a map sensor")}
+            placeholder={t("Find a sensor or room")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <select
-            aria-label="Filter map sensors"
+            aria-label={t("Filter map sensors")}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           >
-            <option value="all">All sensors ({snap.devices.length})</option>
-            <option value="plan">On this plan</option>
-            <option value="suggested">Suggested ({pending})</option>
-            <option value="unplaced">Unplaced ({unplaced})</option>
+            <option value="all">
+              {t("All sensors (")}
+              {snap.devices.length})
+            </option>
+            <option value="plan">{t("On this plan")}</option>
+            <option value="suggested">
+              {t("Suggested (")}
+              {pending})
+            </option>
+            <option value="unplaced">
+              {t("Unplaced (")}
+              {unplaced})
+            </option>
           </select>
           <div className="map-sensor-list">
             {visible.map((d) => {
@@ -825,16 +903,16 @@ export function HouseMap({
                       {location(d, prefs).room} ·{" "}
                       {p
                         ? p.confirmed
-                          ? "Confirmed"
-                          : "Suggested"
-                        : "Unplaced"}
+                          ? t("Confirmed")
+                          : t("Suggested")
+                        : t("Unplaced")}
                     </small>
                   </span>
                   <i className={`map-state-dot ${markerTone(d, snap)}`} />
                 </button>
               );
             })}
-            {!visible.length && <p>No matching sensors.</p>}
+            {!visible.length && <p>{t("No matching sensors.")}</p>}
           </div>
         </aside>
       </div>

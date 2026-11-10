@@ -86,6 +86,7 @@ export interface Snapshot {
   requests: number;
 }
 export interface Preferences {
+  language?: "en" | "es";
   theme: "light" | "dark" | "system";
   density: "compact" | "comfortable";
   names: "original" | "spanish";
@@ -95,6 +96,7 @@ export interface Preferences {
   >;
 }
 export const defaults: Preferences = {
+  language: "en",
   theme: "light",
   density: "compact",
   names: "spanish",
@@ -123,6 +125,7 @@ export interface Bridge {
     password: string,
     remember: boolean,
   ): Promise<Array<{ id: string; name: string }>>;
+  savedAccount(): Promise<{ email: string } | null>;
   savedLogin(): Promise<Array<{ id: string; name: string }>>;
   select(id: string): Promise<Snapshot>;
   logout(): Promise<Snapshot>;

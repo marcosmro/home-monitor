@@ -121,6 +121,7 @@ const browser: Bridge = {
     return demo.refresh(true);
   },
   login: unavailable,
+  savedAccount: async () => null,
   savedLogin: unavailable,
   select: unavailable,
   logout: async () => demo.demo(),

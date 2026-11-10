@@ -1,3 +1,4 @@
+import { useLanguage } from "./i18n";
 import { useState } from "react";
 import type { Snapshot } from "../../shared/model";
 import { bridge } from "./bridge";
@@ -9,6 +10,7 @@ export function BudgetNotice({
   snap: Snapshot;
   available?: boolean;
 }) {
+  const { t } = useLanguage();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const budget = snap.requestBudget;
@@ -36,28 +38,35 @@ export function BudgetNotice({
       <div>
         <strong>
           {budget.serverPaused
-            ? "Sector Alarm has paused requests"
+            ? t("Sector Alarm has paused requests")
             : budget.override
-              ? "Local request cap temporarily disabled"
+              ? t("Local request cap temporarily disabled")
               : budget.localPaused
-                ? "Paused at the app’s hourly request cap"
-                : "Hourly request cap"}
+                ? t("Paused at the app’s hourly request cap")
+                : t("Hourly request cap")}
         </strong>
         <p>
-          {budget.used} requests this hour.{" "}
+          {budget.used} {t("requests this hour.")}{" "}
           {budget.serverPaused
-            ? "The provider’s rate limit still applies; the local override cannot bypass it."
+            ? t(
+                "The provider’s rate limit still applies; the local override cannot bypass it.",
+              )
             : budget.override
-              ? `The 44-request cap returns at ${madrid(budget.resetsAt)} Madrid or when the app restarts. Requests are still counted.`
-              : "You can temporarily exceed the app’s 44-request cap. This may consume the allowance shared with your mobile app."}
+              ? t(
+                  "The 44-request cap returns at {0} Madrid or when the app restarts. Requests are still counted.",
+                  madrid(budget.resetsAt),
+                )
+              : t(
+                  "You can temporarily exceed the app’s 44-request cap. This may consume the allowance shared with your mobile app.",
+                )}
         </p>
         {error && <p role="alert">{error}</p>}
       </div>
       {(!budget.serverPaused || budget.override) && (
         <button disabled={busy} onClick={() => void toggle()}>
           {budget.override
-            ? "Restore request cap"
-            : "Override cap for this hour"}
+            ? t("Restore request cap")
+            : t("Override cap for this hour")}
         </button>
       )}
     </div>

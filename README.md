@@ -30,6 +30,8 @@ npm run dev:web            # http://127.0.0.1:5173, demo-only browser preview
 
 ## Use your alarm
 
+At launch, the window centers on the display containing your pointer and fits its usable area, leaving a 16-pixel margin around the window and respecting the Dock/menu bar or taskbar. It grows up to 1800 × 1200 logical pixels on larger displays. You can still resize it manually; smaller screens keep all content accessible by scrolling.
+
 1. Open **Connect your home** in the desktop application.
 2. Sign in with your Sector Alarm account and select your property. Connecting performs reads only.
 3. Optional **Remember securely** stores an encrypted credential blob protected by Electron's OS credential facility (macOS Keychain; Windows DPAPI). Tokens remain in the main process's memory. No password or panel code goes into local display settings.
@@ -138,10 +140,18 @@ Live batches now pause 10 seconds between cameras to reduce consecutive panel re
 
 Select **Edit locations**, select a sensor, then drag its marker or click a position on the plan. To move it between plans, keep it selected, choose another plan and click the new position. The room selector places it at a room's center for further adjustment. **Confirm this location** accepts a suggestion; **Remove from map** returns it to Unplaced. Edits save automatically and persist across restarts. Zoom/Fit and drag-to-pan support inspecting individual openings; arrow keys move focused markers in edit mode (Shift for larger steps).
 
-Private plans and placement guides are imported with `node scripts/import-house-map.mjs path/to/map-project.json`, with JPEGs alongside the catalog under `plans/<plan-id>.jpg`. Prepared assets in `private-house/` are Git-ignored and excluded from app packaging. Imported files live in `~/Library/Application Support/Home Monitor/house-map`; placement files are separated by property and demo mode. Back up that folder to preserve plans and corrections. The browser demo uses fictional plans only. This release is 2D; exact elevations and 3D geometry are not inferred.
+Private plans and placement guides are imported with `node scripts/import-house-map.mjs path/to/map-project.json`, with JPEGs alongside the catalog under `plans/<plan-id>.jpg`. Prepared assets in `private-house/` are Git-ignored and excluded from app packaging. Imported files live in `~/Library/Application Support/Home Monitor/house-map`; placement files are separated by property and demo mode. Back up that folder to preserve plans and corrections. The browser demo uses fictional plans only. The 2D editor is also the source for the estimated 3D view below.
 
 After building, `node scripts/map-smoke.mjs path/to/map-project.json` verifies private image decoding and location persistence in a disposable desktop demo profile, without live requests or retained screenshots.
 
 The map supports locally traced vector geometry with room fills, stairs, glazed openings, door swings and opening labels. **Original plan** switches back to the imported scan for comparison. Labels such as V01/P01 identify drawing openings, not API sensor numbers. In editing mode, **Place at identified opening** moves a selected sensor to that opening.
 
 Private camera hints can attach a position, direction, confidence and explanation to a specific camera ID using an existing archived photo. Selecting the camera shows that reference photo (click to enlarge); **Camera direction** rotates the marker's direction indicator and persists the edit. The direction fan is illustrative, not calibrated field of view, range, visibility or coverage. **Use photo-based position** restores the suggested position/direction; previously saved local corrections otherwise take precedence. No fresh capture or additional API request is involved. Geometry, evidence and camera identifiers stay in the private catalog, outside the package and Git.
+
+### Estimated 3D view
+
+In **House map**, choose **3D model** to orbit a model of the selected plan. Cutaway/full-wall modes, room labels and an assumed ceiling-height control aid review. **Export 3D model** downloads a Wavefront OBJ mesh in metres with Y up. **Edit locations** returns to the 2D editor; existing sensor placements are projected onto the 3D floor and retain their uncertainty.
+
+Local model guides can specify provisional split levels, double-height spaces, stairs and simple furnishings. A timestamped **Video / plan cross-check** distinguishes supported observations, discrepancies and unknowns. The model is an architectural reconstruction from drawings and visual observations, not photogrammetry or a measured survey. Plans remain separate because cross-plan registration is not established. Wall/opening heights, wall thickness and floor offsets are assumptions. Photo-informed guides can add sloping ceilings, optional roof surfaces, rails, supports, window frames and multiple glazing bands. The roof/ceiling toggle shows the provisional envelope, and exports include it. The Photo / structure cross-check records supporting filenames and unresolved matches. Explicit ceiling profiles retain their own estimates when the default height changes. Hidden construction is omitted. No model processing, orbiting or exports call the alarm API or upload private source media.
+
+Local guides may also provide a separate **Exterior** scene: driveway, garden, terrain and an estimated building envelope. Exterior scenes open with the roof visible; the site sketch is an original schematic. Boundary and elevation uncertainty is recorded in the scene notes. They do not imply registration of the separate interior plans or relocate existing sensors.

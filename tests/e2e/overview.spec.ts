@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
+  await page
+    .getByRole("button", { name: "Start demo mode", exact: true })
+    .click();
   await expect(page.locator(".sensor-row")).toHaveCount(48);
 });
 test("all 48 devices fit at 1440 × 900 in both themes", async ({ page }) => {
@@ -39,6 +42,9 @@ test("local Spanish alias persists and appears in search with original preserved
     .getByRole("textbox", { name: "Nombre en español" })
     .fill("Puerta de José — entrada principal");
   await page.reload();
+  await page
+    .getByRole("button", { name: "Start demo mode", exact: true })
+    .click();
   await page
     .getByRole("textbox", { name: "Find a sensor or room" })
     .fill("José");
@@ -263,6 +269,9 @@ test("house map suggestions can be moved, persisted, and removed", async ({
     })
     .toBeLessThan(1);
   await page.reload();
+  await page
+    .getByRole("button", { name: "Start demo mode", exact: true })
+    .click();
   await page.getByRole("button", { name: "House map", exact: true }).click();
   await expect(page.locator(".map-pin.confirmed")).toHaveCount(1);
   await page.locator(".map-pin.confirmed").click();
@@ -303,6 +312,9 @@ test("vector map supports source comparison, opening assignment, and saved camer
   await direction.press("ArrowRight");
   await expect(direction).toHaveValue("91");
   await page.reload();
+  await page
+    .getByRole("button", { name: "Start demo mode", exact: true })
+    .click();
   await page.getByRole("button", { name: "House map", exact: true }).click();
   await camera().click();
   await page
@@ -312,4 +324,36 @@ test("vector map supports source comparison, opening assignment, and saved camer
     page.getByLabel("Camera direction", { exact: true }),
   ).toHaveValue("91");
   await expect(page.locator(".camera-direction")).toHaveCount(1);
+});
+
+test("3D model orbits, changes wall height, exports geometry, and returns to editable 2D", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "House map", exact: true }).click();
+  await page.getByRole("button", { name: "3D model", exact: true }).click();
+  const polygon = page.locator(".model-canvas polygon").first();
+  await expect(polygon).toBeVisible();
+  const before = await polygon.getAttribute("points");
+  await page.getByLabel("3D orbit", { exact: true }).fill("45");
+  await expect(polygon).not.toHaveAttribute("points", before!);
+  await page
+    .getByRole("button", { name: "Show full walls", exact: true })
+    .click();
+  await page.getByLabel("Assumed ceiling height", { exact: true }).fill("3");
+  const downloadEvent = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Export 3D model", exact: true })
+    .click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toBe("f0-estimated.obj");
+  const { readFile } = await import("node:fs/promises");
+  const obj = await readFile((await download.path())!, "utf8");
+  expect(obj).toContain("g wall");
+  expect(obj).toContain("3.00000");
+  expect(obj).not.toMatch(/NaN|Infinity/);
+  await page
+    .getByRole("button", { name: "Edit locations", exact: true })
+    .click();
+  await expect(page.locator(".map-vector")).toBeVisible();
+  await expect(page.locator(".map-pin")).toHaveCount(16);
 });

@@ -1,5 +1,18 @@
 export function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
+    minus: <path d="M7 12h10" />,
+    "door-open": (
+      <>
+        <path d="M4 21V3h12v18M4 3l9 3v15l-9-3M16 21h4" />
+        <path d="M10 12v2" />
+      </>
+    ),
+    "wifi-off": (
+      <>
+        <path d="m3 3 18 18M3 8a15 15 0 0 1 3-2m5-1a15 15 0 0 1 10 3M6 12a10 10 0 0 1 4-2m5 0a10 10 0 0 1 3 2m-9 4a5 5 0 0 1 6 0" />
+        <circle cx="12" cy="20" r=".6" />
+      </>
+    ),
     temperature: (
       <>
         <path d="M9 14.5V5a3 3 0 0 1 6 0v9.5a5 5 0 1 1-6 0Z" />
