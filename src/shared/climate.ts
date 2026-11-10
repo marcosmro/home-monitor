@@ -40,7 +40,7 @@ export function climatePlan(raw: any, at: string): Climate {
   };
 }
 export const temperatureText = (value?: number) =>
-  value === undefined ? "—" : `${value.toFixed(1)}°`;
+  value === undefined ? "—" : `${Math.round(value)}°`;
 export function temperatureIsStale(d: Device, s: Snapshot, now = Date.now()) {
   const at = d.temperatureFetchedAt || d.fetchedAt;
   return (

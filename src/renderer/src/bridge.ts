@@ -99,10 +99,13 @@ const browser: Bridge = {
     demoJob.stopping = true;
     return structuredClone(demoJob);
   },
-  photoLibrary: async (offset = 0) => ({
-    photos: demoPhotos.slice(offset, offset + 48),
-    total: demoPhotos.length,
-  }),
+  photoLibrary: async (offset = 0, cameraId) => {
+    const photos =
+      cameraId === undefined
+        ? demoPhotos
+        : demoPhotos.filter((p) => p.cameraId === cameraId);
+    return { photos: photos.slice(offset, offset + 48), total: photos.length };
+  },
   photoImage: async (id) => {
     const image = demoPhotoImages.get(id);
     if (!image) throw new Error("Photo not found.");

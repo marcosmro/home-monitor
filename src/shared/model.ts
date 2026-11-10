@@ -46,12 +46,18 @@ export interface Area {
   partial: boolean;
   changedAt?: string;
 }
+export interface KeyTagPerson {
+  name: string;
+  firstName: string;
+  color?: "black" | "blue" | "green" | "red" | "yellow";
+}
 export interface Event {
   id: string;
   type: string;
   time?: string;
   localTime?: string;
   user?: string;
+  channel?: string;
   deviceId?: string;
   description: string;
 }
@@ -74,6 +80,7 @@ export interface Snapshot {
   areas: Area[];
   devices: Device[];
   events: Event[];
+  keyTagPeople?: KeyTagPerson[];
   totalEvents: number;
   statusAt?: string;
   contactsAt?: string;
@@ -86,6 +93,9 @@ export interface Snapshot {
   requests: number;
 }
 export interface Preferences {
+  temperatureRange?: { min: number; max: number };
+  lastPanelId?: string;
+  homeNames?: Record<string, string>;
   language?: "en" | "es";
   theme: "light" | "dark" | "system";
   density: "compact" | "comfortable";
@@ -103,6 +113,7 @@ export const defaults: Preferences = {
   aliases: {},
 };
 export interface Bridge {
+  resetZoom?(): Promise<void>;
   houseMap(): Promise<HouseMapData>;
   mapImage(id: string): Promise<string>;
   saveMapPlacement(
@@ -113,7 +124,7 @@ export interface Bridge {
   cameraState(): Promise<CaptureJob>;
   captureCameras(ids: string[]): Promise<CaptureJob>;
   cancelCapture(): Promise<CaptureJob>;
-  photoLibrary(offset?: number): Promise<PhotoPage>;
+  photoLibrary(offset?: number, cameraId?: string): Promise<PhotoPage>;
   photoImage(id: string): Promise<string>;
   deletePhoto(id: string): Promise<void>;
   exportPhoto(id: string): Promise<void>;

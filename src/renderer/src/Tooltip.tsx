@@ -15,15 +15,18 @@ export function Tooltip({
     if (!anchor) return;
     const close = () => setAnchor(undefined);
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+      }
     };
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
-    window.addEventListener("keydown", escape);
+    window.addEventListener("keydown", escape, true);
     return () => {
       window.removeEventListener("scroll", close, true);
       window.removeEventListener("resize", close);
-      window.removeEventListener("keydown", escape);
+      window.removeEventListener("keydown", escape, true);
     };
   }, [anchor]);
   return (

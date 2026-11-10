@@ -301,18 +301,16 @@ it("labels incomplete-response outcomes unknown and stops the remaining cameras"
 });
 
 it("unwraps a JSON-encoded error message instead of showing raw JSON", async () => {
-  const fetcher = vi
-    .fn()
-    .mockResolvedValue(
-      new Response(
-        JSON.stringify(
-          JSON.stringify({
-            message: "The method is not allowed for the requested URL.",
-          }),
-        ),
-        { status: 405 },
+  const fetcher = vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify(
+        JSON.stringify({
+          message: "The method is not allowed for the requested URL.",
+        }),
       ),
-    );
+      { status: 405 },
+    ),
+  );
   const api = new SectorApi(
     { hour: Math.floor(Date.now() / 3600000), used: 0, blockedUntil: 0 },
     () => {},
@@ -330,4 +328,26 @@ it("unwraps a JSON-encoded error message instead of showing raw JSON", async () 
       serverMessage: "The method is not allowed for the requested URL.",
     },
   });
+});
+
+it("filters a camera's library before pagination and preserves account isolation", async () => {
+  const s = await store();
+  const quiet = await s.save("house", { ...metadata, cameraId: "quiet" }, png);
+  for (let i = 0; i < 50; i++)
+    await s.save("house", { ...metadata, cameraId: "busy" }, png);
+  const quietPage = await s.list("house", 0, "quiet");
+  expect(quietPage.photos.map((p) => p.id)).toEqual([quiet.id]);
+  expect(quietPage.total).toBe(1);
+  const first = await s.list("house", 0, "busy");
+  const older = await s.list("house", 48, "busy");
+  expect(first.photos).toHaveLength(48);
+  expect(older.photos).toHaveLength(2);
+  expect(
+    new Set([...first.photos, ...older.photos].map((p) => p.id)).size,
+  ).toBe(50);
+  expect(first.total).toBe(50);
+  expect((await s.list("other-house", 0, "quiet")).total).toBe(0);
+  await expect(s.list("house", 0, {} as string)).rejects.toThrow(
+    "camera identifier",
+  );
 });

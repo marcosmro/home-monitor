@@ -90,12 +90,17 @@ export function demoSnapshot(): Snapshot {
       },
     ],
     devices,
+    keyTagPeople: [
+      { name: "Marcos", firstName: "Marcos", color: "blue" },
+      { name: "Ana", firstName: "Ana", color: "yellow" },
+    ],
     events: [
       {
         id: "e1",
         type: "armed",
         description: "System fully armed",
         user: "Marcos",
+        channel: "App",
         time: new Date(now - 7200000).toISOString(),
       },
       {
@@ -110,6 +115,7 @@ export function demoSnapshot(): Snapshot {
         type: "disarmed",
         description: "System disarmed",
         user: "Ana",
+        channel: "Keytag",
         time: new Date(now - 18000000).toISOString(),
       },
       {

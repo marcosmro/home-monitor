@@ -16,7 +16,7 @@ let app;
 try {
   app = await launch();
   let page = await app.firstWindow();
-  await page.locator(".sensor-row").first().waitFor();
+  await page.locator(".matrix-sensor").first().waitFor();
   await page.getByRole("button", { name: "Cameras", exact: true }).click();
   await page
     .getByRole("button", { name: "Take photo", exact: true })
@@ -27,7 +27,7 @@ try {
   await app.close();
   app = await launch();
   page = await app.firstWindow();
-  await page.locator(".sensor-row").first().waitFor();
+  await page.locator(".matrix-sensor").first().waitFor();
   await page.getByRole("button", { name: "Cameras", exact: true }).click();
   await page.locator(".photo-tile").first().waitFor();
   assert.equal(await page.locator(".photo-tile").count(), 1);

@@ -38,9 +38,13 @@ function markerTone(d: Device, s: Snapshot) {
 export function HouseMap({
   snap,
   prefs,
+  initialSelectedId,
+  onInspect,
 }: {
   snap: Snapshot;
   prefs: Preferences;
+  initialSelectedId?: string;
+  onInspect?: (id: string) => void;
 }) {
   const { t } = useLanguage();
   const [data, setData] = useState<HouseMapData>(),
@@ -55,7 +59,7 @@ export function HouseMap({
   const [showOpenings, setShowOpenings] = useState(true);
   const [photo, setPhoto] = useState("");
   const [photoUnavailable, setPhotoUnavailable] = useState(false);
-  const [selected, setSelected] = useState(""),
+  const [selected, setSelected] = useState(initialSelectedId || ""),
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [saving, setSaving] = useState(false);
@@ -83,7 +87,15 @@ export function HouseMap({
       .then((d) => {
         if (alive) {
           setData(d);
-          setPlanId(d.plans[0]?.id || "");
+          const positions = {
+            ...suggestPlacements(snap.devices, d),
+            ...d.placements,
+          };
+          setPlanId(
+            (initialSelectedId && positions[initialSelectedId]?.planId) ||
+              d.plans[0]?.id ||
+              "",
+          );
         }
       })
       .catch((e) => {
@@ -618,6 +630,11 @@ export function HouseMap({
             <div className="map-selection">
               <div className="panel-heading">
                 <h3>{displayDevice(device, prefs)}</h3>
+                {onInspect && (
+                  <button onClick={() => onInspect(device.id)}>
+                    {t("Open sensor workspace")} <Icon name="arrow" size={12} />
+                  </button>
+                )}
                 <button
                   className="icon-button"
                   aria-label={t("Close sensor selection")}

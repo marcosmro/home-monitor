@@ -23,15 +23,11 @@ test("icon navigation explains itself on keyboard focus and Escape dismisses the
 test("compact sensor icons retain distinct activity and health descriptions", async ({
   page,
 }) => {
-  const row = page
-    .locator(".sensor-row")
-    .filter({ has: page.locator(".activity-state.open") })
-    .first();
-  await row.locator(".activity-state").hover();
-  await expect(page.getByRole("tooltip")).toHaveText("Open");
-  await row.locator(".health").hover();
-  await expect(page.getByRole("tooltip")).toHaveText("OK");
-  await expect(row).toHaveAccessibleName(/Open, OK/);
+  const row = page.locator('.matrix-sensor[aria-label*="Open"]').first();
+  await row.hover();
+  await expect(page.getByRole("tooltip")).toContainText("Open");
+  await expect(page.getByRole("tooltip")).toContainText("Health: OK");
+  await expect(row).toHaveAccessibleName(/Open.*Health: OK/);
   await row.click();
   await expect(
     page.getByRole("complementary", { name: "Sensor details" }),

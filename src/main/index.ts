@@ -1,3 +1,4 @@
+import { validTemperatureRange } from "../shared/temperature-scale";
 import { HouseMapStore } from "./house-map";
 import { PhotoStore, CameraController } from "./photos";
 import {
@@ -59,6 +60,16 @@ async function remember(email: string, password: string) {
 function validatePreferences(p: Preferences) {
   if (
     !p ||
+    (p.temperatureRange !== undefined &&
+      !validTemperatureRange(p.temperatureRange)) ||
+    (p.lastPanelId !== undefined && typeof p.lastPanelId !== "string") ||
+    (p.homeNames !== undefined &&
+      (!p.homeNames ||
+        typeof p.homeNames !== "object" ||
+        Array.isArray(p.homeNames) ||
+        Object.values(p.homeNames).some(
+          (name) => typeof name !== "string" || name.length > 500,
+        ))) ||
     (p.language !== undefined && !["en", "es"].includes(p.language)) ||
     !["light", "dark", "system"].includes(p.theme) ||
     !["compact", "comfortable"].includes(p.density) ||
@@ -145,6 +156,18 @@ app.whenReady().then(async () => {
     },
   });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("before-input-event", (event, input) => {
+    if (
+      input.type === "keyDown" &&
+      input.key === "0" &&
+      (process.platform === "darwin" ? input.meta : input.control) &&
+      !input.alt &&
+      !input.shift
+    ) {
+      event.preventDefault();
+      win?.webContents.setZoomFactor(1);
+    }
+  });
   win.webContents.on("will-navigate", (e, url) => {
     if (url !== allowed) e.preventDefault();
   });
@@ -152,6 +175,7 @@ app.whenReady().then(async () => {
     cb(false),
   );
   const handlers: Record<string, (...args: any[]) => any> = {
+    resetZoom: () => win?.webContents.setZoomFactor(1),
     houseMap: () => mapStore.load(mapScope()),
     mapImage: (id) => mapStore.image(id),
     saveMapPlacement: (id, placement) => {
@@ -165,7 +189,8 @@ app.whenReady().then(async () => {
     cameraState: () => cameras.state(),
     captureCameras: (ids) => cameras.start(ids),
     cancelCapture: () => cameras.cancel(),
-    photoLibrary: (offset) => photoStore.list(cameras.scope(), offset),
+    photoLibrary: (offset, cameraId) =>
+      photoStore.list(cameras.scope(), offset, cameraId),
     photoImage: (id) => photoStore.image(cameras.scope(), id),
     deletePhoto: (id) => photoStore.remove(cameras.scope(), id),
     exportPhoto: async (id) => {

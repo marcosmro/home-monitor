@@ -4,21 +4,18 @@ test.beforeEach(async ({ page }) => {
   await page
     .getByRole("button", { name: "Start demo mode", exact: true })
     .click();
-  await expect(page.locator(".sensor-row")).toHaveCount(48);
+  await expect(page.locator(".matrix-sensor")).toHaveCount(48);
 });
-test("all 48 devices fit at 1440 × 900 in both themes", async ({ page }) => {
+test("matrix retains all 48 devices and visible activity navigation in both themes", async ({
+  page,
+}) => {
   for (const theme of ["light", "dark"]) {
     if (theme === "dark")
       await page
         .getByRole("button", { name: "Toggle light and dark theme" })
         .click();
-    expect(
-      await page
-        .locator(".sensor-row")
-        .evaluateAll((rows) =>
-          rows.every((r) => r.getBoundingClientRect().bottom <= innerHeight),
-        ),
-    ).toBe(true);
+    await expect(page.locator(".matrix-sensor")).toHaveCount(48);
+    await expect(page.locator(".activity-strip")).toBeInViewport({ ratio: 1 });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -27,17 +24,20 @@ test("all 48 devices fit at 1440 × 900 in both themes", async ({ page }) => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
   }
 });
-test("filters state how many devices are hidden", async ({ page }) => {
+test("table count reflects filtered sensors and total", async ({ page }) => {
   await page.getByRole("button", { name: "Open 3", exact: true }).click();
-  await expect(page.locator(".sensor-row")).toHaveCount(3);
-  await expect(page.locator(".coverage")).toContainText("45 hidden");
-  await page.getByRole("button", { name: "Clear filters" }).click();
-  await expect(page.locator(".sensor-row")).toHaveCount(48);
+  await expect(page.locator(".matrix-sensor")).toHaveCount(3);
+  await expect(page.locator(".matrix-total")).toHaveText("3 of 48 sensors");
+  await page
+    .getByRole("button", { name: "All sensors 48", exact: true })
+    .click();
+  await expect(page.locator(".matrix-sensor")).toHaveCount(48);
 });
-test("local Spanish alias persists and appears in search with original preserved", async ({
+test("local Spanish alias persists in the matrix with original preserved", async ({
   page,
 }) => {
-  await page.locator(".sensor-row").first().click();
+  await page.locator(".matrix-sensor").first().click();
+  await page.getByText("Local names & groups", { exact: true }).first().click();
   await page
     .getByRole("textbox", { name: "Nombre en español" })
     .fill("Puerta de José — entrada principal");
@@ -45,11 +45,11 @@ test("local Spanish alias persists and appears in search with original preserved
   await page
     .getByRole("button", { name: "Start demo mode", exact: true })
     .click();
-  await page
-    .getByRole("textbox", { name: "Find a sensor or room" })
-    .fill("José");
-  await expect(page.locator(".sensor-row")).toHaveCount(1);
-  await page.locator(".sensor-row").click();
+  const renamed = page.locator(".matrix-panel").getByRole("button", {
+    name: /Puerta de José — entrada principal/,
+  });
+  await expect(renamed).toHaveCount(1);
+  await renamed.click();
   await expect(
     page.getByRole("complementary", { name: "Sensor details" }),
   ).toContainText("Front door");
@@ -102,36 +102,36 @@ test("stale data preserves all devices and disables alarm controls", async ({
   await page
     .getByRole("button", { name: "House overview", exact: true })
     .click();
-  await expect(page.locator(".sensor-row")).toHaveCount(48);
+  await expect(page.locator(".matrix-sensor")).toHaveCount(48);
   await expect(page.locator(".alarm-title")).toContainText("Last known");
   await expect(
     page.getByRole("button", { name: "Disarm", exact: true }),
   ).toBeDisabled();
-  await expect(page.locator(".sensor-row").first()).toContainText("Stale");
+  await expect(page.locator(".matrix-sensor").first()).toHaveAccessibleName(
+    /Stale/,
+  );
 });
 test("smaller windows and comfortable density retain all devices without horizontal overflow", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.getByRole("button", { name: "Density: compact" }).click();
-  await expect(page.locator(".sensor-row")).toHaveCount(48);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByLabel("Sensor density", { exact: true })
+    .selectOption("comfortable");
+  await page
+    .getByRole("button", { name: "House overview", exact: true })
+    .click();
+  await expect(page.locator(".matrix-sensor")).toHaveCount(48);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await expect(
-    page.getByText(
-      "Scroll to review every sensor; none are paginated or collapsed.",
-      { exact: false },
-    ),
-  ).toBeVisible();
+  await page.locator(".matrix-sensor").last().scrollIntoViewIfNeeded();
+  await expect(page.locator(".matrix-sensor").last()).toBeInViewport();
 });
-test("keyboard search and dialog escape work", async ({ page }) => {
-  await page.keyboard.press("Meta+k");
-  await expect(
-    page.getByRole("textbox", { name: "Find a sensor or room" }),
-  ).toBeFocused();
+test("dialog Escape works without a search shortcut", async ({ page }) => {
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Disarm", exact: true }).click();
   await page.keyboard.press("Escape");
@@ -142,15 +142,11 @@ test("temperature averages use the full inventory through filtering", async ({
   page,
 }) => {
   const average = await page.locator(".house-temperature").innerText();
-  await expect(page.locator(".room-temperature")).toHaveCount(12);
-  await expect(page.locator(".house-temperature")).toContainText("20.9°");
+  await expect(page.locator(".house-temperature")).toContainText("21°");
   await page.getByRole("button", { name: "Open 3", exact: true }).click();
   await expect(page.locator(".house-temperature")).toHaveText(average, {
     useInnerText: true,
   });
-  await expect(page.locator(".room-temperature").first()).toContainText(
-    "20.0°",
-  );
 });
 
 test("camera panel captures, opens, and deletes a simulated photo", async ({

@@ -53,9 +53,14 @@ export class PhotoStore {
     }
     return photo;
   }
-  async list(scope: string, offset = 0): Promise<PhotoPage> {
+  async list(scope: string, offset = 0, cameraId?: string): Promise<PhotoPage> {
     if (!Number.isInteger(offset) || offset < 0)
       throw new Error("Invalid page.");
+    if (
+      cameraId !== undefined &&
+      (typeof cameraId !== "string" || !cameraId || cameraId.length > 500)
+    )
+      throw new Error("Invalid camera identifier.");
     let names: string[];
     try {
       names = (await fs.readdir(this.folder(scope)))
@@ -66,6 +71,19 @@ export class PhotoStore {
       if ((e as NodeJS.ErrnoException).code === "ENOENT")
         return { photos: [], total: 0 };
       throw e;
+    }
+    if (cameraId !== undefined) {
+      const matching: Photo[] = [];
+      for (const name of names) {
+        const photo: Photo = JSON.parse(
+          await fs.readFile(join(this.folder(scope), name), "utf8"),
+        );
+        if (photo.cameraId === cameraId) matching.push(photo);
+      }
+      return {
+        photos: matching.slice(offset, offset + 48),
+        total: matching.length,
+      };
     }
     const photos: Photo[] = [];
     for (const name of names.slice(offset, offset + 48))

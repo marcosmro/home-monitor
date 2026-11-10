@@ -226,6 +226,11 @@ button svg {
 .topbar button {
   -webkit-app-region: no-drag;
 }
+.reset-zoom {
+  flex: none;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .property {
   display: flex;
   flex-direction: column;
@@ -2758,4 +2763,1915 @@ dialog .banner {
   font-size: 12px;
   color: var(--muted);
   margin-top: 8px;
+}
+
+/* Room-by-type status matrix: shared columns, independent sensor counts. */
+.sensor-view-switch {
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+.sensor-view-switch button {
+  border: 0;
+  background: transparent;
+  padding: 5px 9px;
+}
+.sensor-view-switch button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--green);
+  box-shadow: 0 1px 4px #0001;
+}
+
+.matrix-panel {
+  flex: 1;
+  min-width: 0;
+}
+.matrix-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.matrix-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+}
+.matrix-key i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.matrix-key .warm {
+  background: var(--amber);
+  margin-left: 6px;
+}
+.matrix-key .danger {
+  background: var(--red);
+  margin-left: 6px;
+}
+.matrix-key .neutral {
+  background: transparent;
+  border: 1px solid var(--muted);
+  margin-left: 6px;
+}
+.matrix-floors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.matrix-floor-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.matrix-floor-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.matrix-floor-title small {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--muted);
+}
+.matrix-scroll {
+  overflow: auto;
+}
+.sensor-matrix {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.sensor-matrix th,
+.sensor-matrix td {
+  border-bottom: 1px solid var(--line);
+  height: 32px;
+  padding: 2px 5px;
+  text-align: center;
+}
+.sensor-matrix tr:last-child th,
+.sensor-matrix tr:last-child td {
+  border-bottom: 0;
+}
+.sensor-matrix thead th {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  background: var(--surface-alt);
+}
+.sensor-matrix thead th:first-child {
+  text-align: left;
+  padding-left: 12px;
+}
+.sensor-matrix .matrix-room {
+  overflow-wrap: anywhere;
+  padding: 4px 12px;
+  font-size: 11px;
+  text-align: left;
+  font-weight: 500;
+  background: var(--surface);
+}
+.sensor-matrix td {
+  border-left: 1px solid var(--line);
+}
+.matrix-cell-stack {
+  display: flex;
+  justify-content: center;
+  gap: 1px;
+  flex-wrap: wrap;
+  min-width: 24px;
+}
+.matrix-sensor {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+}
+.matrix-sensor:hover,
+.matrix-sensor.is-selected {
+  background: var(--surface-alt);
+  outline: 1px solid var(--green);
+  outline-offset: -1px;
+}
+.matrix-empty {
+  color: var(--muted);
+  opacity: 0.35;
+  font-size: 12px;
+}
+.display-options .sensor-view-switch button {
+  width: auto;
+  height: auto;
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .matrix-panel {
+    width: 100%;
+  }
+}
+
+.temperature-glyph {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+.temperature-glyph.stale-temperature.has-temperature {
+  border-style: dashed;
+}
+.temperature-glyph.no-temperature {
+  border-color: transparent;
+}
+.temperature-range-inputs {
+  display: flex;
+  gap: 16px;
+}
+.temperature-range-inputs label {
+  flex: 1;
+  min-width: 0;
+}
+.temperature-range-inputs input {
+  width: 100%;
+}
+.temperature-preview {
+  display: flex;
+  justify-content: space-between;
+  margin: 18px 0 12px;
+}
+.temperature-preview > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.temperature-preview small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.temperature-preview .temperature-glyph i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.temperature-gradient {
+  height: 6px;
+  border-radius: 3px;
+}
+.temperature-applied {
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--green);
+}
+
+.sensor-layout.matrix-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  align-items: start;
+  gap: 22px;
+}
+.matrix-dashboard .detail-panel {
+  width: 100%;
+}
+.matrix-column-name {
+  margin-left: 5px;
+}
+.matrix-floor-divider th {
+  background: var(--surface-alt);
+  text-align: left;
+  height: 28px;
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.matrix-floor-divider svg {
+  vertical-align: middle;
+  margin-right: 7px;
+}
+.matrix-floor-divider small {
+  float: right;
+  color: var(--muted);
+  font-weight: 400;
+}
+.matrix-dashboard .sensor-matrix thead th {
+  height: 36px;
+}
+.matrix-dashboard .sensor-matrix td,
+.matrix-dashboard .matrix-room {
+  height: 29px;
+}
+.home-activity {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.activity-calendar,
+.activity-attention {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 15px;
+}
+.activity-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.activity-card-heading h3 {
+  font-size: 12px;
+  margin: 0;
+}
+.activity-card-heading button {
+  font-size: 10px;
+  padding: 4px 7px;
+}
+.activity-card-heading > span {
+  font-size: 11px;
+  color: var(--amber);
+}
+.calendar-month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 8px;
+}
+.calendar-month strong {
+  font-size: 12px;
+  text-transform: capitalize;
+}
+.calendar-month button {
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  font-size: 18px;
+  border: 0;
+}
+.calendar-weekdays,
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  text-align: center;
+}
+.calendar-weekdays {
+  font-size: 9px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.calendar-days button {
+  flex-direction: column;
+  gap: 3px;
+  height: 31px;
+  padding: 3px 0;
+  font-size: 11px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+.calendar-days button i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: transparent;
+}
+.calendar-days .has-events {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.calendar-days .has-events i {
+  background: var(--green);
+}
+.calendar-days .is-today {
+  border-color: var(--line);
+}
+.calendar-days button[aria-pressed="true"] {
+  border-color: var(--green);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+.calendar-days button:hover {
+  background: var(--surface-alt);
+}
+.calendar-scope {
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 12px 0;
+}
+.calendar-event-heading {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.calendar-event-heading span {
+  color: var(--muted);
+}
+.calendar-event-list {
+  max-height: 150px;
+  overflow: auto;
+}
+.calendar-event-list article {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 0;
+}
+.calendar-event-list article svg {
+  margin-top: 2px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.calendar-event-list strong {
+  display: block;
+  font-weight: 500;
+  font-size: 11px;
+}
+.calendar-event-list small {
+  display: block;
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.calendar-event-list p,
+.activity-attention p {
+  font-size: 11px;
+  color: var(--muted);
+}
+.calendar-history {
+  width: 100%;
+  justify-content: space-between;
+  font-size: 10px;
+  margin-top: 8px;
+}
+.activity-attention > button {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  padding: 9px 0 0;
+  font-size: 10px;
+  background: transparent;
+}
+.activity-attention > button span {
+  flex: 1;
+}
+.activity-attention > button svg:first-child {
+  color: var(--amber);
+}
+.activity-attention > small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+@media (max-width: 1050px) {
+  .sensor-layout.matrix-dashboard {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 14px;
+  }
+  .matrix-column-name {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .sensor-layout.matrix-dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.activity-attention > button span small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 400;
+}
+
+/* Compact status tiles and a persistent detail / activity workspace. */
+.sensor-layout.matrix-dashboard {
+  grid-template-columns: fit-content(58%) minmax(280px, 1fr);
+  gap: 24px;
+}
+.matrix-dashboard .matrix-panel {
+  width: max-content;
+  max-width: 100%;
+}
+.matrix-dashboard .matrix-intro {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.matrix-key i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+.matrix-dashboard .matrix-scroll {
+  width: max-content;
+  max-width: 100%;
+}
+.matrix-dashboard .sensor-matrix {
+  width: auto;
+  table-layout: auto;
+}
+.matrix-dashboard .matrix-room {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  padding: 6px 16px;
+}
+.matrix-dashboard .matrix-column-name {
+  display: none;
+}
+.matrix-dashboard .sensor-matrix td {
+  padding: 4px 8px;
+}
+.matrix-dashboard .sensor-matrix thead th {
+  height: 38px;
+}
+.matrix-dashboard .matrix-cell-stack {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.matrix-dashboard .matrix-sensor {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.matrix-dashboard .matrix-sensor.closed {
+  background: var(--green-bg);
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 22%, transparent);
+}
+.matrix-dashboard .matrix-sensor.attention {
+  background: var(--amber-bg);
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 35%, transparent);
+}
+.matrix-dashboard .matrix-sensor.alarm {
+  background: var(--red);
+  color: var(--surface);
+  border-color: var(--red);
+}
+.matrix-dashboard .matrix-sensor.unknown {
+  border-style: dashed;
+}
+.matrix-dashboard .matrix-sensor:hover {
+  filter: brightness(0.96);
+  outline: 1px solid currentColor;
+  outline-offset: 1px;
+}
+.matrix-dashboard .matrix-sensor.is-selected {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  box-shadow: 0 2px 8px #0002;
+}
+.matrix-temperature.is-stale {
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+.sensor-context {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  align-items: start;
+  gap: 16px;
+  min-width: 0;
+}
+.sensor-detail-slot:empty {
+  display: none;
+}
+.sensor-context-empty {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  min-height: 245px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  background: linear-gradient(140deg, var(--green-bg), var(--surface));
+}
+.sensor-context-empty > svg {
+  color: var(--green);
+}
+.sensor-context-empty h3 {
+  font-size: 22px;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+.sensor-context-empty p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+  max-width: 32ch;
+}
+.sensor-context .detail-panel {
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 0;
+}
+.sensor-context .detail-icon {
+  width: 40px;
+  height: 40px;
+  margin: 18px 0 12px;
+}
+.sensor-context .detail-panel h2 {
+  font-size: 22px;
+  letter-spacing: -0.5px;
+}
+.sensor-focus-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 22px 0;
+}
+.sensor-focus-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.sensor-focus-stats span,
+.sensor-focus-stats small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.sensor-focus-stats strong {
+  font-size: 23px;
+  letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
+}
+.sensor-information summary,
+details.local-edit summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sensor-information {
+  border-top: 1px solid var(--line);
+}
+.sensor-information .note {
+  line-height: 1.6;
+}
+.sensor-context .local-edit {
+  margin-top: 0;
+  padding-top: 0;
+}
+.sensor-context .local-edit h3 {
+  display: none;
+}
+.sensor-context .activity-calendar,
+.sensor-context .activity-attention {
+  border-radius: 12px;
+}
+.calendar-scope-switch {
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 7px;
+  background: var(--surface-alt);
+  margin-top: 14px;
+}
+.calendar-scope-switch button {
+  flex: 1;
+  font-size: 10px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+}
+.calendar-scope-switch button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--green);
+  box-shadow: 0 1px 3px #0001;
+}
+.calendar-sensor-label {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-top: 10px;
+}
+@media (max-width: 1000px) {
+  .sensor-layout.matrix-dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sensor-context {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  }
+}
+
+.matrix-reading-note {
+  max-width: 40ch;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: -5px 0 12px;
+}
+
+/* Three equal workspace columns, capped to keep the matrix compact. */
+.sensor-layout.matrix-dashboard {
+  width: 100%;
+  max-width: 1320px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.matrix-dashboard .sensor-context {
+  display: contents;
+}
+.sensor-inspector {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.matrix-dashboard .matrix-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.matrix-dashboard .matrix-intro {
+  padding: 20px;
+  margin: 0;
+  gap: 14px;
+}
+.matrix-intro h3 {
+  font-size: 12px;
+  color: var(--ink);
+}
+.matrix-dashboard .matrix-scroll {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+}
+.matrix-dashboard .sensor-matrix {
+  width: 100%;
+}
+
+.matrix-dashboard .sensor-context-empty {
+  min-height: 302px;
+  border: 1px solid var(--line);
+  padding: 20px;
+  gap: 16px;
+  background: var(--surface);
+}
+.sensor-context-empty > svg {
+  order: 1;
+  margin-top: 16px;
+}
+.sensor-context-empty > .eyebrow {
+  order: 0;
+}
+.sensor-context-empty h3 {
+  order: 2;
+  font-size: 22px;
+}
+.sensor-context-empty p {
+  order: 3;
+  max-width: 31ch;
+}
+.matrix-dashboard .activity-calendar,
+.matrix-dashboard .activity-attention {
+  padding: 20px;
+}
+.matrix-dashboard .activity-attention > button {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  gap: 10px;
+}
+.matrix-dashboard .activity-attention > button:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.matrix-dashboard .activity-attention > .activity-card-heading {
+  margin-bottom: 4px;
+}
+.matrix-dashboard .calendar-scope-switch {
+  margin-top: 16px;
+}
+.matrix-dashboard .calendar-days button {
+  height: 34px;
+}
+.matrix-dashboard .calendar-event-list {
+  min-height: 96px;
+}
+@media (max-width: 1279px) {
+  .sensor-layout.matrix-dashboard {
+    max-width: 880px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .matrix-dashboard .matrix-panel {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .matrix-dashboard .sensor-inspector {
+    grid-column: 2;
+  }
+  .matrix-dashboard .home-activity {
+    grid-column: 2;
+  }
+}
+@media (max-width: 760px) {
+  .sensor-layout.matrix-dashboard {
+    max-width: 460px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .matrix-dashboard .matrix-panel,
+  .matrix-dashboard .sensor-inspector,
+  .matrix-dashboard .home-activity {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+.matrix-dashboard .matrix-intro h3,
+.matrix-dashboard .panel-heading,
+.matrix-dashboard .activity-card-heading {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+.sensor-context .panel-heading .eyebrow,
+.sensor-context-empty .eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.sensor-context-empty .eyebrow {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+/* Activity becomes a compact horizontal timeline above a balanced split. */
+.activity-strip {
+  max-width: 1320px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: block;
+}
+.strip-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.strip-toolbar h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.strip-toolbar > button {
+  font-size: 10px;
+  padding: 5px 8px;
+}
+.strip-toolbar .calendar-month {
+  margin: 0;
+  gap: 10px;
+}
+.strip-toolbar .calendar-month strong {
+  font-size: 11px;
+}
+.strip-toolbar .calendar-scope-switch {
+  margin: 0;
+}
+.strip-history {
+  margin-left: auto;
+}
+.activity-strip .calendar-days {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 10px 1px 7px;
+}
+.activity-strip .calendar-days button {
+  flex: 1 0 30px;
+  max-width: 40px;
+  height: 32px;
+  border-radius: 5px;
+  background: var(--surface-alt);
+}
+.activity-strip .calendar-days .has-events {
+  background: var(--green-bg);
+}
+.strip-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 9px;
+  color: var(--muted);
+}
+.strip-footer > button {
+  font-size: 10px;
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+}
+.activity-strip .calendar-event-list {
+  display: flex;
+  gap: 24px;
+  padding-top: 8px;
+  max-height: 160px;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+}
+.activity-strip .calendar-event-list article {
+  flex: 0 0 230px;
+}
+.activity-strip .calendar-event-list p {
+  padding: 8px 0;
+}
+.sensor-layout.matrix-dashboard {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 1320px;
+}
+.matrix-dashboard .matrix-panel {
+  grid-column: 1;
+  grid-row: auto;
+}
+.matrix-dashboard .sensor-context {
+  display: block;
+  grid-column: 2;
+  min-width: 0;
+}
+.matrix-dashboard .sensor-inspector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.matrix-dashboard .sensor-context-empty {
+  min-height: 0;
+  gap: 8px;
+  padding: 16px 20px;
+}
+.sensor-context-empty > svg {
+  display: none;
+}
+.sensor-context-empty h3 {
+  font-size: 18px;
+}
+.sensor-context-empty p {
+  max-width: none;
+}
+.sensor-context .detail-panel {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 4px 12px;
+  padding: 16px 20px;
+}
+.sensor-context .detail-panel .panel-heading {
+  grid-column: 1 / -1;
+  margin-bottom: 8px;
+}
+.sensor-context .detail-panel .detail-icon {
+  grid-column: 1;
+  grid-row: 2 / span 2;
+  margin: 0;
+}
+.sensor-context .detail-panel h2,
+.sensor-context .detail-panel > p {
+  grid-column: 2;
+  margin: 0;
+}
+.sensor-context .detail-panel h2 {
+  font-size: 20px;
+}
+.sensor-context .sensor-focus-stats,
+.sensor-context .sensor-information,
+.sensor-context .local-edit {
+  grid-column: 1 / -1;
+}
+.sensor-context .sensor-focus-stats {
+  padding: 12px 0;
+}
+.sensor-context .sensor-focus-stats strong {
+  font-size: 21px;
+}
+.sensor-context .sensor-information summary,
+.sensor-context .local-edit summary {
+  padding: 9px 0;
+}
+.sensor-location {
+  min-width: 0;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.location-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.location-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  margin-right: auto;
+}
+.location-heading select {
+  max-width: 50%;
+  padding: 6px;
+  font-size: 11px;
+}
+.location-heading button {
+  padding: 6px;
+}
+.location-plan {
+  position: relative;
+  margin: 0 auto;
+  background: #fbfcfa;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.location-plan > img,
+.location-rooms {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.location-rooms polygon {
+  fill: transparent;
+  stroke: transparent;
+  cursor: pointer;
+}
+.location-rooms polygon:hover,
+.location-rooms polygon:focus-visible {
+  fill: #33735915;
+  stroke: #337359;
+  stroke-width: 2px;
+  outline: none;
+}
+.location-rooms polygon.is-selected {
+  fill: #33735922;
+  stroke: #337359;
+  stroke-width: 3px;
+}
+.location-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 5px;
+  border: 1px solid #337359;
+  background: #fff;
+  color: #337359;
+}
+.location-pin.suggested {
+  border-style: dashed;
+}
+.location-pin.is-selected {
+  background: #337359;
+  color: white;
+  outline: 2px solid #337359;
+  outline-offset: 2px;
+  z-index: 1;
+}
+.location-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.location-caption strong {
+  font-size: 12px;
+}
+.location-caption span {
+  font-size: 10px;
+  color: var(--muted);
+}
+.location-room-sensors {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.location-room-sensors button {
+  padding: 5px 7px;
+  font-size: 10px;
+}
+.location-room-sensors button[aria-pressed="true"] {
+  border-color: var(--green);
+  background: var(--green-bg);
+}
+.location-room-sensors small {
+  font-size: 9px;
+  color: var(--muted);
+}
+@media (max-width: 760px) {
+  .sensor-layout.matrix-dashboard {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: none;
+  }
+  .matrix-dashboard .matrix-panel,
+  .matrix-dashboard .sensor-context {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .strip-toolbar {
+    gap: 7px;
+  }
+  .strip-toolbar .calendar-scope-switch {
+    order: 5;
+  }
+}
+.activity-strip .calendar-scope-switch button {
+  white-space: nowrap;
+  flex: none;
+}
+.matrix-room-link {
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  font-weight: inherit;
+  white-space: nowrap;
+  text-align: left;
+}
+.matrix-room-link:hover {
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: transparent;
+}
+
+/* One persistent inspector; the bottom strip is navigation, never an event feed. */
+.matrix-dashboard .sensor-context {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+  position: sticky;
+  top: 16px;
+  min-height: 520px;
+}
+.inspector-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-alt);
+}
+.inspector-tabs button {
+  flex: 1;
+  padding: 10px 8px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.inspector-tabs button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--green);
+  border-color: var(--line);
+  box-shadow: 0 2px 5px #00000008;
+}
+.sensor-context > [role="tabpanel"] {
+  max-height: min(760px, calc(100vh - 110px));
+  overflow: auto;
+}
+.sensor-context [hidden] {
+  display: none !important;
+}
+.sensor-context .detail-panel,
+.sensor-context .sensor-location,
+.matrix-dashboard .sensor-context-empty {
+  border: 0;
+  border-radius: 0;
+}
+.sensor-context .sensor-location {
+  padding: 20px;
+}
+.matrix-dashboard + .activity-strip {
+  margin-top: 18px;
+  margin-bottom: 0;
+}
+.activity-day {
+  padding: 22px;
+}
+.activity-day-heading h2 {
+  font-size: 23px;
+  margin-top: 12px;
+  letter-spacing: -0.6px;
+}
+.activity-day-heading > p {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 8px 0 20px;
+}
+.activity-day .calendar-event-list {
+  max-height: none;
+  margin-top: 18px;
+  overflow: visible;
+}
+.activity-day .calendar-event-list article {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  gap: 12px;
+}
+.activity-day .calendar-event-list strong {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.activity-day .calendar-event-list small {
+  font-size: 11px;
+  margin-top: 6px;
+}
+.activity-day .calendar-event-list article button {
+  margin-top: 10px;
+  font-size: 10px;
+  padding: 5px 8px;
+}
+.activity-day-empty {
+  padding: 38px 8px;
+  text-align: center;
+  color: var(--muted);
+}
+.activity-day-empty h3 {
+  margin: 14px 0 8px;
+  color: var(--ink);
+}
+.activity-day-empty p {
+  line-height: 1.7;
+  max-width: 35ch;
+  margin-inline: auto;
+}
+@media (max-width: 760px) {
+  .matrix-dashboard .sensor-context {
+    position: static;
+    min-height: 400px;
+  }
+  .sensor-context > [role="tabpanel"] {
+    max-height: 600px;
+  }
+}
+
+.inspector-selection {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.inspector-selection > svg {
+  color: var(--green);
+}
+.inspector-selection > div {
+  flex: 1;
+  min-width: 0;
+}
+.inspector-selection strong {
+  display: block;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.inspector-selection span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.inspector-selection > button {
+  font-size: 10px;
+  padding: 6px 8px;
+}
+.camera-inspector {
+  padding: 20px;
+}
+.sensor-context .detail-panel .camera-inspector {
+  grid-column: 1 / -1;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.camera-inspector-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.camera-inspector-heading h3 {
+  font-size: 12px;
+}
+.camera-inspector-heading button {
+  padding: 5px;
+}
+.camera-latest-preview {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.camera-latest-preview .photo-image {
+  height: 170px;
+  aspect-ratio: auto;
+}
+.camera-inspector .camera-saved-time {
+  font-size: 10px;
+  color: var(--muted);
+  margin: 9px 0 14px;
+}
+.camera-inspector .note {
+  font-size: 10px;
+  line-height: 1.7;
+  margin-top: 12px;
+}
+.camera-inspector-empty {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 32px 14px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.camera-inspector-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.camera-inspector-actions button {
+  font-size: 11px;
+}
+.inspector-photo-viewer .photo-pan {
+  height: 290px;
+}
+.inspector-photo-viewer .photo-zoom-toolbar {
+  flex-wrap: wrap;
+}
+.camera-photo-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.camera-photo-navigation button {
+  font-size: 11px;
+}
+.camera-photo-navigation span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.camera-photo-history {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.camera-photo-history button {
+  text-align: left;
+  justify-content: flex-start;
+  padding: 10px;
+  font-size: 11px;
+}
+.camera-photo-history button small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 9px;
+}
+.camera-photo-history button[aria-pressed="true"] {
+  border-color: var(--green);
+  background: var(--green-bg);
+  color: var(--green);
+}
+.camera-card.is-selected {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+.camera-inspect-link {
+  font-size: 10px;
+  margin: 8px 0;
+}
+
+.activity-strip .calendar-days button:disabled,
+.activity-strip .calendar-days button:disabled:hover {
+  background: transparent;
+  color: var(--muted);
+  border-color: transparent;
+  opacity: 0.35;
+  cursor: default;
+  box-shadow: none;
+}
+.activity-strip .calendar-month button:disabled:hover {
+  background: transparent;
+}
+
+.matrix-dashboard .sensor-matrix td.matrix-unavailable {
+  background: color-mix(in srgb, var(--muted) 14%, var(--surface));
+}
+
+/* Give narrow windows the full canvas while keeping navigation and controls reachable. */
+@media (max-width: 760px) {
+  .display-options {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .matrix-dashboard .matrix-intro {
+    padding: 16px;
+    gap: 8px;
+  }
+  .matrix-dashboard .sensor-context {
+    scroll-margin-top: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .app {
+    flex-direction: column;
+  }
+  .rail {
+    position: static;
+    width: 100%;
+    padding: 6px 12px;
+    flex-direction: row;
+    gap: 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .rail .brand,
+  .rail .avatar {
+    display: none;
+  }
+  .rail-nav {
+    flex-direction: row;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+  .rail-nav .tooltip-anchor {
+    flex: 1;
+    min-width: 0;
+  }
+  .rail-nav button {
+    min-height: 44px;
+    border-radius: 9px;
+  }
+  .rail-nav button.active {
+    box-shadow: inset 0 -3px var(--green);
+  }
+  .rail-bottom {
+    margin: 0;
+    flex-direction: row;
+    gap: 0;
+  }
+  .rail-bottom button {
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+  }
+  .main-shell {
+    margin-left: 0;
+    width: 100%;
+  }
+  main {
+    padding-inline: 12px;
+  }
+  .topbar,
+  .compact .topbar {
+    height: 56px;
+    padding-inline: 12px;
+  }
+  .alarm-strip,
+  .compact .alarm-strip {
+    margin-inline: 12px;
+    padding: 12px;
+    min-height: 0;
+    gap: 10px;
+  }
+  .alarm-strip h1 {
+    font-size: 21px;
+  }
+  .alarm-symbol {
+    width: 40px;
+    height: 40px;
+  }
+  .alarm-actions button {
+    min-height: 40px;
+  }
+  .demo-notice,
+  .compact .demo-notice {
+    padding-inline: 12px;
+    gap: 8px;
+  }
+  .demo-notice > span {
+    min-width: 0;
+  }
+  .section-heading,
+  .compact .section-heading {
+    padding-block: 14px 10px;
+    gap: 10px;
+  }
+  .section-heading h2 {
+    font-size: 21px;
+    margin-top: 0;
+  }
+  .overview-title {
+    gap: 10px;
+  }
+  .overview-toolbar {
+    gap: 8px;
+  }
+  .filters {
+    gap: 5px;
+  }
+  .filters button {
+    min-height: 40px;
+    padding: 7px 9px;
+  }
+  .display-options {
+    width: 100%;
+    gap: 6px;
+  }
+  .display-options select {
+    flex: 1;
+    min-height: 40px;
+  }
+  .display-options > button,
+  .display-options .sensor-view-switch button {
+    min-height: 40px;
+  }
+  .heading-options .search {
+    min-height: 40px;
+  }
+  .matrix-dashboard .matrix-intro {
+    padding: 14px;
+  }
+  .matrix-key {
+    flex-wrap: wrap;
+  }
+
+  .inspector-tabs {
+    padding: 6px;
+  }
+  .inspector-tabs button {
+    min-height: 44px;
+  }
+}
+@media (max-width: 600px) {
+  .alarm-copy {
+    min-width: 180px;
+  }
+  .alarm-actions {
+    margin-left: auto;
+  }
+  main:has(.matrix-dashboard) > .scroll-hint {
+    display: none;
+  }
+  .overview-toolbar {
+    align-items: flex-start;
+  }
+  .filters {
+    width: 100%;
+  }
+}
+/* Keep absolute screen-reader labels inside the matrix's scrollable bounds. */
+.matrix-dashboard .matrix-scroll {
+  position: relative;
+}
+
+/* The plan uses the matrix's full height without stretching its geometry. */
+@media (min-width: 761px) {
+  .matrix-dashboard .sensor-context {
+    position: relative;
+    top: auto;
+    align-self: stretch;
+    contain: size;
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+  }
+  .matrix-dashboard .sensor-context > [role="tabpanel"] {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  .matrix-dashboard .sensor-context > .inspector-selection,
+  .matrix-dashboard .sensor-context > .inspector-tabs {
+    flex-shrink: 0;
+  }
+  #inspector-panel-map .sensor-location {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .location-stage {
+    flex: 1;
+    min-height: 0;
+  }
+}
+.location-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.location-stage .location-plan {
+  flex: none;
+}
+@media (max-width: 760px) {
+  .location-stage {
+    height: 380px;
+  }
+}
+
+.activity-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--surface-alt);
+  color: var(--muted);
+}
+.activity-action-icon.action-armed {
+  background: color-mix(in srgb, var(--green) 13%, var(--surface));
+  color: var(--green);
+}
+.activity-action-icon.action-disarmed {
+  background: color-mix(in srgb, #5386bf 15%, var(--surface));
+  color: #3976b9;
+}
+.activity-action-icon.action-partial {
+  background: color-mix(in srgb, #ba8524 15%, var(--surface));
+  color: #a16d13;
+}
+.activity-actor {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  vertical-align: middle;
+}
+.key-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 23px;
+  width: 23px;
+  height: 23px;
+  border-radius: 6px;
+  color: #fff;
+}
+.tag-yellow {
+  background: #ffc52e;
+  color: #513b00;
+}
+.tag-green {
+  background: #147d70;
+}
+.tag-red {
+  background: #c9172a;
+}
+.tag-blue {
+  background: #2565b4;
+}
+.tag-black {
+  background: #30363d;
+}
+.activity-channel {
+  color: var(--muted);
+}
+.calendar-event-list .activity-actor {
+  margin-left: 8px;
+}
+
+/* Keep the desktop overview and its day navigation in one viewport. */
+@media (min-width: 761px) and (min-height: 650px) {
+  .main-shell:has(.matrix-dashboard) {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  .main-shell:has(.matrix-dashboard) > :not(main) {
+    flex-shrink: 0;
+  }
+  .main-shell:has(.matrix-dashboard) main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 360px;
+    padding-bottom: 12px;
+  }
+  main:has(.matrix-dashboard) > :not(.matrix-dashboard) {
+    flex-shrink: 0;
+  }
+  main:has(.matrix-dashboard) > .section-heading {
+    padding-block: 10px 8px;
+  }
+  main:has(.matrix-dashboard) > .scroll-hint,
+  main:has(.matrix-dashboard) > .sensor-footnote,
+  main:has(.matrix-dashboard) > .coverage > span:last-child {
+    display: none;
+  }
+  main:has(.matrix-dashboard) > .coverage {
+    padding-block: 5px;
+    margin-bottom: 4px;
+  }
+  .main-shell:has(.matrix-dashboard) .alarm-strip {
+    min-height: 0;
+    padding-block: 10px;
+  }
+  .main-shell:has(.matrix-dashboard) .alarm-symbol {
+    width: 40px;
+    height: 40px;
+  }
+  .main-shell:has(.matrix-dashboard) .alarm-strip h1 {
+    font-size: 22px;
+  }
+  .sensor-layout.matrix-dashboard {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .matrix-dashboard .matrix-panel,
+  .matrix-dashboard .sensor-context {
+    min-height: 0;
+    height: 100%;
+  }
+  .matrix-dashboard .matrix-intro {
+    padding: 10px 14px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    flex-shrink: 0;
+  }
+  .matrix-dashboard .matrix-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  .matrix-dashboard .sensor-matrix thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface-alt);
+    height: 28px;
+  }
+  .matrix-dashboard .matrix-floor-divider th {
+    height: 24px;
+    padding-block: 4px;
+  }
+  .matrix-dashboard .matrix-room,
+  .matrix-dashboard .sensor-matrix td {
+    padding-block: 2px;
+  }
+  .compact .matrix-dashboard .matrix-sensor {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+  }
+
+  .matrix-dashboard .inspector-tabs {
+    padding: 6px;
+  }
+  .matrix-dashboard .inspector-tabs button {
+    padding-block: 8px;
+  }
+  .matrix-dashboard .sensor-location {
+    padding: 12px 16px;
+  }
+  .matrix-dashboard .location-heading {
+    margin-bottom: 8px;
+  }
+  .matrix-dashboard + .activity-strip {
+    margin-top: 10px;
+    padding: 8px 14px;
+  }
+  .activity-strip .calendar-days {
+    padding-block: 6px;
+  }
+}
+
+/* Context changes never resize the map canvas. */
+.location-context {
+  flex: 0 0 82px;
+  height: 82px;
+  min-height: 82px;
+  min-width: 0;
+  overflow: hidden;
+}
+.location-context .location-caption {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+}
+.location-context .location-caption strong,
+.location-context .location-caption > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.location-context .location-room-sensors {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  margin-top: 6px;
+  padding: 2px 1px 5px;
+}
+.location-context .location-room-sensors button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.matrix-floor-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  border-radius: 4px;
+}
+.matrix-floor-link:hover,
+.matrix-floor-link[aria-pressed="true"] {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.matrix-floor-link:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.matrix-total {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Keep action, actor identity, and time in consistent, separate positions. */
+.activity-event-content {
+  flex: 1;
+  min-width: 0;
+}
+.activity-event-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.activity-event-heading h3,
+.activity-event-heading strong {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.activity-event-heading time {
+  flex: none;
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.activity-event-content > .activity-actor {
+  display: flex;
+  margin: 8px 0 0;
+  gap: 8px 12px;
+  font-size: 11px;
+}
+.activity-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.activity-person-name {
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.activity-actor .key-tag-badge {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px #00000014;
+}
+.calendar-event-list .key-tag-badge svg,
+.calendar-event-list .activity-action-icon svg {
+  color: inherit;
+  margin: 0;
+}
+.activity-channel {
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+  font-size: 10px;
+}
+[data-theme="dark"] .tag-black {
+  background: #414a53;
+  box-shadow: inset 0 0 0 1px #ffffff35;
+}
+[data-theme="dark"] .activity-action-icon.action-disarmed {
+  color: #9ac3ef;
+}
+[data-theme="dark"] .activity-action-icon.action-partial {
+  color: #e7c17b;
+}
+
+.sensor-detail-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sensor-detail-title h2 {
+  margin: 0;
+}
+.sensor-detail-title > button {
+  flex: none;
+}
+.camera-inspector:not(.preview) .camera-inspector-heading {
+  justify-content: flex-end;
 }

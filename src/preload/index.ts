@@ -5,6 +5,7 @@ const invoke =
   (...args: unknown[]) =>
     ipcRenderer.invoke(name, ...args);
 const bridge: Bridge = {
+  resetZoom: invoke("resetZoom"),
   houseMap: invoke("houseMap"),
   mapImage: invoke("mapImage"),
   saveMapPlacement: invoke("saveMapPlacement"),

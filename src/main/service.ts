@@ -1,3 +1,4 @@
+import { keyTagPeople } from "../shared/activity-identity";
 import { isCamera } from "../shared/cameras";
 import { SectorApi, ApiError, CaptureOutcomeUnknown } from "./api";
 import type { Snapshot, Action, Device } from "../shared/model";
@@ -176,6 +177,20 @@ export class Monitor {
           Number(r.TotalRecords) || this.snap.events.length;
         this.snap.eventsAt = new Date().toISOString();
       });
+      // Optional enrichment: read at most hourly, including manual refreshes.
+      if (now - (this.lastAttempt.people || 0) >= 3600000) {
+        this.lastAttempt.people = now;
+        try {
+          this.snap.keyTagPeople = keyTagPeople(
+            await this.api.request(
+              `/api/persons/panels/${encodeURIComponent(this.snap.panelId)}`,
+            ),
+          );
+        } catch {
+          // Unsupported panels still have a complete activity history.
+          this.snap.keyTagPeople = [];
+        }
+      }
       const previousOrder = new Map(this.snap.devices.map((d, i) => [d.id, i]));
       this.snap.devices = mergeDevices(
         this.contacts.map((d) => ({

@@ -1,5 +1,13 @@
+import { ActivityActionIcon, ActivityActor } from "./ActivityIdentity";
+import { CameraInspector, useCameraLibrary } from "./CameraInspector";
+import { isCamera } from "../../shared/cameras";
+import { canSelectActivityDay } from "../../shared/activity-calendar";
+import { SensorLocation } from "./SensorLocation";
+import { ActivityCalendar, ActivityDay } from "./ActivityCalendar";
+import { TemperatureSettings } from "./TemperatureSettings";
 import { useLanguage } from "./i18n";
 import { Tooltip } from "./Tooltip";
+import { SensorMatrix } from "./SensorMatrix";
 import { HouseMap } from "./HouseMap";
 import { BudgetNotice } from "./BudgetNotice";
 import { Cameras } from "./Cameras";
@@ -19,13 +27,11 @@ import {
   averageTemperature,
   temperatureText,
   temperatureIsStale,
-  roomGroupKey,
   type Average,
 } from "../../shared/climate";
 import { madrid, eventTime } from "../../shared/time";
 import { bridge } from "./bridge";
-import { Icon, deviceIcon, typeLabel } from "./icons";
-
+import { Icon, deviceIcon } from "./icons";
 function AverageReading({
   average,
   house = false,
@@ -74,7 +80,6 @@ function AverageReading({
     </span>
   );
 }
-
 function Modal({
   title,
   children,
@@ -113,18 +118,74 @@ export default function App() {
     "overview" | "activity" | "settings" | "cameras" | "map"
   >("overview");
   const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [group, setGroup] = useState("floor");
+  const [inspectorTab, setInspectorTab] = useState<
+    "details" | "map" | "activity" | "photos"
+  >("map");
+  const [activityDate, setActivityDate] = useState(() =>
+    madrid(new Date().toISOString(), true).slice(0, 10),
+  );
+  const [activitySensorOnly, setActivitySensorOnly] = useState(false);
+  const inspectorRef = useRef<HTMLDivElement>(null);
+  function revealInspector() {
+    if (!window.matchMedia("(max-width: 760px)").matches) return;
+    requestAnimationFrame(() => {
+      const inspector = inspectorRef.current;
+      inspector
+        ?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')
+        ?.focus({
+          preventScroll: true,
+        });
+      inspector?.scrollIntoView({
+        block: "start",
+      });
+    });
+  }
+  function showDay(day: string) {
+    if (!canSelectActivityDay(day, Date.now())) return;
+    setActivityDate(day);
+    setInspectorTab("activity");
+    requestAnimationFrame(() =>
+      inspectorRef.current?.scrollIntoView({
+        block: "nearest",
+      }),
+    );
+  }
   const [selected, setSelected] = useState<string>();
+  const [cameraFocus, setCameraFocus] = useState<string>();
+  const selectedDevice = snap?.devices.find((d) => d.id === selected);
+  const selectedCamera =
+    selectedDevice && isCamera(selectedDevice) ? selectedDevice : undefined;
+  const cameraLibrary = useCameraLibrary(
+    selectedCamera?.id,
+    `${snap?.demo}:${snap?.panelId}`,
+    view === "overview",
+  );
+  useEffect(() => {
+    if (inspectorTab === "photos" && !selectedCamera)
+      setInspectorTab("details");
+  }, [selectedCamera?.id, inspectorTab]);
+  function openCameraControls() {
+    setCameraFocus(selectedCamera?.id);
+    setView("cameras");
+  }
+  const [roomFocus, setRoomFocus] = useState<Device>();
+  const [floorFocus, setFloorFocus] = useState<Device>();
+  useEffect(() => {
+    if (selected) {
+      setRoomFocus(undefined);
+      setFloorFocus(undefined);
+    }
+  }, [selected]);
   const [command, setCommand] = useState<Action>();
   const [area, setArea] = useState(0);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [connect, setConnect] = useState(false);
-  const [savedAccount, setSavedAccount] = useState<{ email: string } | null>(
-    null,
-  );
+  const [openingProperty, setOpeningProperty] = useState(false);
+  const [savedAccount, setSavedAccount] = useState<{
+    email: string;
+  } | null>(null);
   const [checkingAccount, setCheckingAccount] = useState(false);
   const [otherAccount, setOtherAccount] = useState(false);
   useEffect(() => {
@@ -154,10 +215,14 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const [panels, setPanels] = useState<Array<{ id: string; name: string }>>([]);
+  const [panels, setPanels] = useState<
+    Array<{
+      id: string;
+      name: string;
+    }>
+  >([]);
   const [now, setNow] = useState(Date.now());
   const [eventFilter, setEventFilter] = useState("all");
-  const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     void bridge.snapshot().then((s) => setSnap(structuredClone(s)));
     void bridge.preferences().then((p) => {
@@ -187,12 +252,7 @@ export default function App() {
   }, [prefs.theme]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setView("overview");
-        searchRef.current?.focus();
-      }
-      if (e.key === "Escape") setSelected(undefined);
+      if (e.key === "Escape" && !e.defaultPrevented) setSelected(undefined);
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
@@ -211,17 +271,36 @@ export default function App() {
       setBusy(false);
     }
   }
-  async function openAccount(result: Array<{ id: string; name: string }>) {
+  async function openAccount(
+    result: Array<{
+      id: string;
+      name: string;
+    }>,
+  ) {
     setPanels(result);
     setPassword("");
     if (result.length === 0)
       throw new Error(t("No properties were found for this account."));
-    if (result.length === 1) {
-      const next = await bridge.select(result[0].id);
+    const selected =
+      result.find((p) => p.id === prefs.lastPanelId) || result[0];
+    await selectProperty(selected.id);
+  }
+  async function selectProperty(id: string) {
+    setConnect(false);
+    setOpeningProperty(true);
+    try {
+      const next = await bridge.select(id);
       setSnap(structuredClone(next));
-      setConnect(false);
+      save({
+        ...prefs,
+        lastPanelId: id,
+      });
       setDemoChosen(false);
-      setView("overview");
+    } catch (error) {
+      setConnect(true);
+      throw error;
+    } finally {
+      setOpeningProperty(false);
     }
   }
   function save(p: Preferences) {
@@ -229,7 +308,7 @@ export default function App() {
     setPrefs(p);
     void bridge.savePreferences(p).catch((e) => setError(e.message));
   }
-  if (!snap)
+  if (!snap || openingProperty)
     return (
       <div className="loading">
         <Icon name="home" size={36} />
@@ -237,6 +316,7 @@ export default function App() {
         <p>{t("Loading the last available state.")}</p>
       </div>
     );
+  const homeName = (!snap.demo && prefs.homeNames?.[snap.panelId]) || snap.name;
   const pending = ["sending", "awaiting", "unknown"].includes(
     snap.command.phase,
   );
@@ -250,32 +330,22 @@ export default function App() {
     (d) => d.batteryLow || d.batteryCritical,
   ).length;
   const offline = snap.devices.filter((d) => d.offline).length;
-  const filtered = snap.devices.filter((d) => {
-    const loc = location(d, prefs);
-    return (
-      (filter === "all" ||
-        (filter === "open" && d.closed === false) ||
-        (filter === "attention" && needsAttention(d)) ||
-        (filter === "battery" && (d.batteryLow || d.batteryCritical)) ||
-        (filter === "offline" && d.offline)) &&
-      `${displayDevice(d, prefs)} ${d.original} ${loc.floor} ${loc.room} ${t(typeLabel(d.type))}`
-        .toLocaleLowerCase()
-        .includes(search.toLocaleLowerCase())
-    );
-  });
-  const groups = new Map<string, Device[]>();
-  for (const d of filtered) {
-    const key =
-      group === "floor" ? location(d, prefs).floor : t(typeLabel(d.type));
-    groups.set(key, [...(groups.get(key) || []), d]);
-  }
+  const filtered = snap.devices.filter(
+    (d) =>
+      filter === "all" ||
+      (filter === "open" && d.closed === false) ||
+      (filter === "attention" && needsAttention(d)) ||
+      (filter === "battery" && (d.batteryLow || d.batteryCritical)) ||
+      (filter === "offline" && d.offline),
+  );
   const houseAverage = averageTemperature(snap, snap.devices, now);
-  const allRooms = new Map<string, Device[]>();
-  for (const d of snap.devices) {
-    const key = roomGroupKey(d, prefs);
-    allRooms.set(key, [...(allRooms.get(key) || []), d]);
-  }
-  const detail = snap.devices.find((d) => d.id === selected);
+  const detail = selectedDevice;
+  const inspectorTabs = [
+    ["details", "info", "Details"],
+    ["map", "layers", "Floor plan"],
+    ...(selectedCamera ? [["photos", "camera", "Photos"]] : []),
+    ["activity", "clock", "Activity"],
+  ] as Array<[typeof inspectorTab, string, string]>;
   const visibleEvents = snap.events.filter(
     (e) =>
       eventFilter === "all" ||
@@ -423,7 +493,7 @@ export default function App() {
                     setView("settings");
                   }}
                 >
-                  {snap.name}
+                  {homeName}
                   <Icon name="chevron" size={13} />
                 </button>
               </div>
@@ -443,6 +513,16 @@ export default function App() {
               >
                 <Icon name="refresh" />
               </button>
+              {bridge.resetZoom && (
+                <button
+                  className="reset-zoom"
+                  aria-label={t("Reset zoom to 100%")}
+                  title={t("Reset zoom to 100% · ⌘0 / Ctrl+0")}
+                  onClick={() => void perform(() => bridge.resetZoom!())}
+                >
+                  {t("Reset zoom")} · 100%
+                </button>
+              )}
             </header>
             <section
               className={`alarm-strip mode-${snap.mode} ${triggered ? "danger" : ""}`}
@@ -634,6 +714,12 @@ export default function App() {
                   key={`${snap.demo}:${snap.panelId}`}
                   snap={snap}
                   prefs={prefs}
+                  initialSelectedId={selected}
+                  onInspect={(id) => {
+                    setSelected(id);
+                    setInspectorTab("details");
+                    setView("overview");
+                  }}
                 />
               )}
               {view === "cameras" && (
@@ -641,42 +727,16 @@ export default function App() {
                   key={`${snap.demo}:${snap.panelId}`}
                   snap={snap}
                   prefs={prefs}
+                  initialCameraId={cameraFocus}
+                  onInspect={(id) => {
+                    setSelected(id);
+                    setInspectorTab("map");
+                    setView("overview");
+                  }}
                 />
               )}
               {view === "overview" && (
                 <>
-                  <div className="section-heading">
-                    <div className="overview-title">
-                      <h2>
-                        {t("Your whole house")}{" "}
-                        <span>
-                          {snap.devices.length} {t("sensors")}
-                        </span>
-                      </h2>
-                      <AverageReading average={houseAverage} house />
-                    </div>
-                    <div className="heading-options">
-                      <label className="search">
-                        <Icon name="search" size={15} />
-                        <input
-                          ref={searchRef}
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                          placeholder={t("Find a sensor or room")}
-                          aria-label={t("Find a sensor or room")}
-                        />
-                        <kbd>⌘ K</kbd>
-                      </label>
-                      <select
-                        aria-label={t("Group sensors")}
-                        value={group}
-                        onChange={(e) => setGroup(e.target.value)}
-                      >
-                        <option value="floor">{t("By floor & room")}</option>
-                        <option value="type">{t("By device type")}</option>
-                      </select>
-                    </div>
-                  </div>
                   <div className="overview-toolbar">
                     <div className="filters">
                       {[
@@ -698,489 +758,353 @@ export default function App() {
                         </button>
                       ))}
                     </div>
-                    <div className="display-options">
-                      <select
-                        aria-label={t("Display names")}
-                        value={prefs.names}
-                        onChange={(e) =>
-                          save({
-                            ...prefs,
-                            names: e.target.value as Preferences["names"],
-                          })
-                        }
-                      >
-                        <option value="spanish">Nombres en español</option>
-                        <option value="original">{t("Original names")}</option>
-                      </select>
-                      <Tooltip label={t("Density: {0}", t(prefs.density))}>
-                        <button
-                          title={t("Toggle density")}
-                          aria-label={t("Density: {0}", t(prefs.density))}
-                          onClick={() =>
-                            save({
-                              ...prefs,
-                              density:
-                                prefs.density === "compact"
-                                  ? "comfortable"
-                                  : "compact",
-                            })
-                          }
-                        >
-                          <Icon name="layers" size={15} />
-                          <span className="sr-only">
-                            {prefs.density === "compact"
-                              ? t("Compact")
-                              : t("Comfortable")}
-                          </span>
-                        </button>
-                      </Tooltip>
-                    </div>
+                    <AverageReading average={houseAverage} house />
                   </div>
-                  <div className="coverage">
-                    <span>
-                      {(snap.warnings.telemetry ||
-                        snap.warnings.contacts ||
-                        snap.warnings.inventory ||
-                        snap.warnings.cameras ||
-                        snap.warnings.smoke ||
-                        snap.warnings.flood) &&
-                        t("Inventory may be incomplete · ")}
-                      {filtered.length === snap.devices.length
-                        ? t(
-                            "Showing all {0} available sensors",
-                            snap.devices.length,
-                          )
-                        : t(
-                            "Showing {0} of {1} · {2} hidden by filters",
-                            filtered.length,
-                            snap.devices.length,
-                            snap.devices.length - filtered.length,
-                          )}
-                      {(filter !== "all" || search) && (
-                        <button
-                          onClick={() => {
-                            setFilter("all");
-                            setSearch("");
-                          }}
-                        >
-                          {t("Clear filters")}
-                        </button>
-                      )}
-                    </span>
-                    <span>
-                      {t("Activity ≠ health")}{" "}
-                      <span className="legend-dot green" /> {t("Closed")}{" "}
-                      <span className="legend-dot amber-dot" /> {t("Open")}{" "}
-                      <span className="legend-dot red" /> {t("Alarm")}
-                    </span>
-                  </div>
-                  <div className="scroll-hint">
-                    {t(
-                      "Smaller window? Scroll the page to review all sensors. Groups remain expanded.",
-                    )}
-                  </div>
+                  {(snap.warnings.telemetry ||
+                    snap.warnings.contacts ||
+                    snap.warnings.inventory ||
+                    snap.warnings.cameras ||
+                    snap.warnings.smoke ||
+                    snap.warnings.flood) && (
+                    <p className="note" role="status">
+                      {t("Inventory may be incomplete")}
+                    </p>
+                  )}
                   <div
-                    className={`sensor-layout ${detail ? "with-detail" : ""}`}
+                    className={`sensor-layout matrix-dashboard ${detail ? "with-detail" : ""}`}
                   >
-                    <div className="floor-grid">
-                      {[...groups].map(([name, devices], index) => {
-                        const rooms = new Map<string, Device[]>();
-                        devices.forEach((d) => {
-                          const r = roomGroupKey(d, prefs);
-                          rooms.set(r, [...(rooms.get(r) || []), d]);
-                        });
-                        return (
-                          <section className="floor" key={name}>
-                            <div className="floor-heading">
-                              <span className="floor-number">
-                                {String(index + 1).padStart(2, "0")}
-                              </span>
-                              <h3>{name}</h3>
-                              <span>{devices.length}</span>
-                            </div>
-                            <div className="column-labels">
-                              <span>{t("DEVICE")}</span>
-                              <span>°C</span>
-                              <span>{t("ACTIVITY")}</span>
-                              <span>{t("HEALTH")}</span>
-                            </div>
-                            {[...rooms].map(([key, ds]) => {
-                              const first = ds[0],
-                                loc = location(first, prefs);
-                              const roomDevices = allRooms.get(key) || ds;
-                              const duplicateName =
-                                [...allRooms.values()].filter(
-                                  (items) =>
-                                    location(items[0], prefs).floor ===
-                                      loc.floor &&
-                                    location(items[0], prefs).room === loc.room,
-                                ).length > 1;
-                              const room =
-                                loc.room +
-                                (duplicateName && first.roomNumber !== undefined
-                                  ? ` ${first.roomNumber}`
-                                  : "");
-                              return (
-                                <div className="room" key={key}>
-                                  <div className="room-heading">
-                                    <span>
-                                      {group === "type"
-                                        ? `${loc.floor} · `
-                                        : ""}
-                                      {room}
-                                    </span>
-                                    <AverageReading
-                                      average={averageTemperature(
-                                        snap,
-                                        roomDevices,
-                                        now,
-                                        key,
-                                      )}
-                                    />
-                                    <small>{ds.length}</small>
-                                  </div>
-                                  {ds.map((d) => {
-                                    const health = deviceHealth(d),
-                                      state = deviceState(d);
-                                    const old =
-                                      d.stale ||
-                                      age(d.fetchedAt, now) > 1200000;
-                                    return (
-                                      <button
-                                        key={d.id}
-                                        className={`sensor-row ${selected === d.id ? "selected" : ""} ${d.alarm ? "alarmed" : ""}`}
-                                        onClick={() => setSelected(d.id)}
-                                        aria-label={`${displayDevice(d, prefs)}, ${t(typeLabel(d.type))}, ${t(state)}, ${t(health)}${old ? t(", stale") : ""}`}
-                                      >
-                                        <Tooltip label={t(typeLabel(d.type))}>
-                                          <span
-                                            className={`sensor-glyph type-${deviceIcon(d.type)}`}
-                                          >
-                                            <Icon
-                                              name={deviceIcon(d.type)}
-                                              size={16}
-                                            />
-                                          </span>
-                                        </Tooltip>
-                                        <span
-                                          className="sensor-name"
-                                          title={`${displayDevice(d, prefs)} · ${t(typeLabel(d.type))}`}
-                                        >
-                                          {displayDevice(d, prefs)}
-                                          <small>
-                                            {t(typeLabel(d.type))}
-                                            {old ? t(" · stale") : ""}
-                                          </small>
-                                        </span>
-                                        <span
-                                          className={`sensor-temperature ${temperatureIsStale(d, snap, now) ? "last-known" : ""}`}
-                                          aria-label={
-                                            d.temperature === undefined
-                                              ? t("Temperature not reported")
-                                              : t(
-                                                  "{0} degrees Celsius{1}",
-                                                  d.temperature.toFixed(1),
-                                                  temperatureIsStale(
-                                                    d,
-                                                    snap,
-                                                    now,
-                                                  )
-                                                    ? t(", last known")
-                                                    : "",
-                                                )
-                                          }
-                                          title={
-                                            d.temperature === undefined
-                                              ? t("Temperature not reported")
-                                              : t(
-                                                  "{0}Fetched {1} Madrid. Sensor report time unavailable.",
-                                                  temperatureIsStale(
-                                                    d,
-                                                    snap,
-                                                    now,
-                                                  )
-                                                    ? t(
-                                                        "Last known temperature. ",
-                                                      )
-                                                    : "",
-                                                  madrid(
-                                                    d.temperatureFetchedAt ||
-                                                      d.fetchedAt,
-                                                    true,
-                                                  ),
-                                                )
-                                          }
-                                        >
-                                          {temperatureText(d.temperature)}
-                                          {d.temperature !== undefined &&
-                                            temperatureIsStale(
-                                              d,
-                                              snap,
-                                              now,
-                                            ) && <Icon name="clock" size={9} />}
-                                        </span>
-                                        <Tooltip label={t(state)}>
-                                          <span
-                                            className={`activity-state ${state === "Open" ? "open" : state === "Alarm" ? "alarm" : state === "Closed" ? "closed" : "unknown"}`}
-                                          >
-                                            <Icon
-                                              name={
-                                                state === "Closed"
-                                                  ? "check"
-                                                  : state === "Open"
-                                                    ? "door-open"
-                                                    : state === "Alarm"
-                                                      ? "alert"
-                                                      : state === "Last known"
-                                                        ? "clock"
-                                                        : "minus"
-                                              }
-                                              size={14}
-                                            />
-                                            <span className="sr-only">
-                                              {t(state)}
-                                            </span>
-                                          </span>
-                                        </Tooltip>
-                                        <Tooltip
-                                          label={`${t(health)}${old ? ` · ${t("Stale")}` : ""}`}
-                                        >
-                                          <span
-                                            className={`health ${health === "OK" ? "healthy" : health === "Unknown" ? "unknown" : "issue"}`}
-                                            title={t(
-                                              "{0}. {1}Fetched {2} Madrid. Sensor report time not supplied.",
-                                              t(health),
-                                              old ? t("Stale fetch. ") : "",
-                                              madrid(d.fetchedAt, true),
-                                            )}
-                                          >
-                                            {old ? (
-                                              <>
-                                                <Icon name="clock" size={12} />
-                                                <span>
-                                                  {health === "OK"
-                                                    ? t("Stale")
-                                                    : health === "Low battery"
-                                                      ? t("Low")
-                                                      : health ===
-                                                          "Critical battery"
-                                                        ? t("Critical")
-                                                        : t(health)}
-                                                </span>
-                                              </>
-                                            ) : health === "OK" ? (
-                                              <>
-                                                <Icon name="check" size={12} />
-                                                <span>OK</span>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Icon
-                                                  name={
-                                                    health.includes("battery")
-                                                      ? "battery"
-                                                      : health === "Offline"
-                                                        ? "wifi-off"
-                                                        : health === "Unknown"
-                                                          ? "info"
-                                                          : "alert"
-                                                  }
-                                                  size={12}
-                                                />
-                                                <span>
-                                                  {health === "Low battery"
-                                                    ? t("Low")
-                                                    : health ===
-                                                        "Critical battery"
-                                                      ? t("Critical")
-                                                      : t(health)}
-                                                </span>
-                                              </>
-                                            )}
-                                          </span>
-                                        </Tooltip>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })}
-                          </section>
+                    <SensorMatrix
+                      snap={snap}
+                      devices={filtered}
+                      prefs={prefs}
+                      now={now}
+                      selected={selected}
+                      onSelect={(id) => {
+                        setSelected(id);
+                        setInspectorTab(
+                          snap.devices.some((d) => d.id === id && isCamera(d))
+                            ? "map"
+                            : "details",
                         );
-                      })}
-                      {filtered.length === 0 && (
-                        <div className="empty">
-                          <Icon name="search" size={30} />
-                          <h3>
-                            {snap.devices.length
-                              ? t("No matching sensors")
-                              : t("No sensor inventory available")}
-                          </h3>
-                          <p>
-                            {snap.devices.length
-                              ? t("Try another name or clear your filters.")
-                              : t(
-                                  "Connection and capability details appear above. Missing devices are not treated as healthy.",
-                                )}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    {detail && (
-                      <aside
-                        className="detail-panel"
-                        aria-label={t("Sensor details")}
+                        revealInspector();
+                      }}
+                      activeFloor={
+                        floorFocus
+                          ? location(floorFocus, prefs).floor
+                          : undefined
+                      }
+                      onSelectFloor={(device) => {
+                        setSelected(undefined);
+                        setRoomFocus(undefined);
+                        setFloorFocus(device);
+                        setInspectorTab("map");
+                        revealInspector();
+                      }}
+                      onSelectRoom={(device) => {
+                        setFloorFocus(undefined);
+                        setSelected(undefined);
+                        setRoomFocus(device);
+                        setInspectorTab("map");
+                        revealInspector();
+                      }}
+                    />
+                    <div ref={inspectorRef} className="sensor-context">
+                      <div
+                        className="inspector-tabs"
+                        role="tablist"
+                        aria-label={t("Explore your home")}
+                        onKeyDown={(e) => {
+                          const tabs = inspectorTabs.map(([tab]) => tab);
+                          const index = tabs.indexOf(inspectorTab);
+                          const next =
+                            e.key === "ArrowRight"
+                              ? (index + 1) % tabs.length
+                              : e.key === "ArrowLeft"
+                                ? (index + tabs.length - 1) % tabs.length
+                                : e.key === "Home"
+                                  ? 0
+                                  : e.key === "End"
+                                    ? tabs.length - 1
+                                    : -1;
+                          if (next >= 0) {
+                            e.preventDefault();
+                            setInspectorTab(tabs[next]);
+                            e.currentTarget
+                              .querySelectorAll<HTMLButtonElement>(
+                                '[role="tab"]',
+                              )
+                              [next].focus();
+                          }
+                        }}
                       >
-                        <div className="panel-heading">
-                          <span className="eyebrow">{t("SENSOR DETAILS")}</span>
+                        {inspectorTabs.map(([tab, icon, label]) => (
                           <button
-                            className="icon-button"
-                            onClick={() => setSelected(undefined)}
-                            aria-label={t("Close sensor details")}
+                            key={tab}
+                            id={`inspector-tab-${tab}`}
+                            role="tab"
+                            aria-selected={inspectorTab === tab}
+                            aria-controls={`inspector-panel-${tab}`}
+                            tabIndex={inspectorTab === tab ? 0 : -1}
+                            onClick={() => setInspectorTab(tab)}
                           >
-                            <Icon name="close" size={17} />
+                            <Icon name={icon} size={15} />
+                            {t(label)}
                           </button>
-                        </div>
-                        <div className="detail-icon">
-                          <Icon name={deviceIcon(detail.type)} size={28} />
-                        </div>
-                        <h2>{displayDevice(detail, prefs)}</h2>
-                        <p>
-                          {location(detail, prefs).floor} /{" "}
-                          {location(detail, prefs).room}
-                        </p>
-                        <dl>
-                          {[
-                            [
-                              t("Temperature"),
-                              detail.temperature === undefined
-                                ? t("Not reported")
-                                : `${temperatureText(detail.temperature)}C${temperatureIsStale(detail, snap, now) ? t(" · last known") : ""}`,
-                            ],
-                            [
-                              t("Temperature fetched"),
-                              madrid(detail.temperatureFetchedAt, true),
-                            ],
-                            [t("Activity"), t(deviceState(detail))],
-                            [
-                              t("Mounted on"),
-                              detail.mount
-                                ? `${prefs.names === "spanish" ? (detail.mount === "window" ? "Ventana" : "Puerta") : detail.mount === "window" ? t("Window") : t("Door")}${detail.mountIndex !== undefined ? ` ${detail.mountIndex}` : ""}`
-                                : t("Not reported"),
-                            ],
-                            [t("Device health"), t(deviceHealth(detail))],
-                            [
-                              t("Battery"),
-                              detail.batteryLow === undefined
-                                ? t("Not reported")
-                                : detail.batteryLow
-                                  ? t("Low")
-                                  : t("No low-battery flag"),
-                            ],
-                            [t("Tamper"), t("Not supplied by API")],
-                            [t("Last change"), madrid(detail.changedAt, true)],
-                            [t("Data fetched"), madrid(detail.fetchedAt, true)],
-                            [t("Last sensor report"), t("Not supplied by API")],
-                            [t("Original name"), detail.original],
-                            [t("Device type"), detail.type],
-                            [t("Stable ID"), detail.id],
-                          ].map(([k, v]) => (
-                            <div key={k}>
-                              <dt>{k}</dt>
-                              <dd>{v}</dd>
-                            </div>
-                          ))}
-                        </dl>
-                        <p className="note">
-                          {t(
-                            "All times Europe/Madrid. A successful fetch does not establish when the sensor last reported.",
+                        ))}
+                      </div>
+                      <div
+                        id="inspector-panel-details"
+                        role="tabpanel"
+                        aria-labelledby="inspector-tab-details"
+                        hidden={inspectorTab !== "details"}
+                      >
+                        <div className="sensor-inspector">
+                          {!detail && (
+                            <section className="sensor-context-empty">
+                              <Icon name="grid" size={24} />
+                              <h3>
+                                {roomFocus
+                                  ? location(roomFocus, prefs).room
+                                  : t("Select a sensor")}
+                              </h3>
+                              <p>
+                                {roomFocus
+                                  ? `${location(roomFocus, prefs).floor} · ${t("Choose a sensor in this room to inspect its readings.")}`
+                                  : t(
+                                      "Choose a square to inspect its status, temperature and recent activity.",
+                                    )}
+                              </p>
+                            </section>
                           )}
-                        </p>
-                        <div className="local-edit">
-                          <h3>{t("Local names & groups")}</h3>
-                          <p>{t("Saved on this computer only.")}</p>
-                          {[
-                            ["name", t("Friendly name")],
-                            ["spanish", "Nombre en español"],
-                            ["floor", t("Floor group")],
-                            ["room", t("Room group")],
-                          ].map(([key, label]) => (
-                            <label key={key}>
-                              {label}
-                              <input
-                                value={
-                                  prefs.aliases[detail.id]?.[key as "name"] ||
-                                  ""
-                                }
-                                placeholder={
-                                  key === "spanish"
-                                    ? detail.spanish || detail.original
-                                    : key === "floor"
-                                      ? location(detail, prefs).floor
-                                      : key === "room"
-                                        ? location(detail, prefs).room
-                                        : detail.original
-                                }
-                                onChange={(e) =>
-                                  save({
-                                    ...prefs,
-                                    aliases: {
-                                      ...prefs.aliases,
-                                      [detail.id]: {
-                                        ...prefs.aliases[detail.id],
-                                        [key]: e.target.value,
-                                      },
-                                    },
-                                  })
-                                }
-                              />
-                            </label>
-                          ))}
+                          {detail && (
+                            <aside
+                              className="detail-panel"
+                              aria-label={t("Sensor details")}
+                            >
+                              <div className="detail-icon">
+                                <Icon
+                                  name={deviceIcon(detail.type)}
+                                  size={28}
+                                />
+                              </div>
+                              <div className="sensor-detail-title">
+                                <h2>{displayDevice(detail, prefs)}</h2>
+                                <button
+                                  className="icon-button"
+                                  onClick={() => setSelected(undefined)}
+                                  aria-label={t("Close sensor details")}
+                                >
+                                  <Icon name="close" size={17} />
+                                </button>
+                              </div>
+                              <p>
+                                {location(detail, prefs).floor} /{" "}
+                                {location(detail, prefs).room}
+                              </p>
+                              <div className="sensor-focus-stats">
+                                <div>
+                                  <span>{t("Temperature")}</span>
+                                  <strong>
+                                    {detail.temperature === undefined
+                                      ? "—"
+                                      : `${temperatureText(detail.temperature)}C`}
+                                  </strong>
+                                  <small>
+                                    {detail.temperature === undefined
+                                      ? t("Not reported")
+                                      : temperatureIsStale(detail, snap, now)
+                                        ? t("Last known")
+                                        : t("Latest reading")}
+                                  </small>
+                                </div>
+                                <div>
+                                  <span>{t("Activity")}</span>
+                                  <strong>{t(deviceState(detail))}</strong>
+                                  <small>{t(deviceHealth(detail))}</small>
+                                </div>
+                              </div>
+                              {selectedCamera && (
+                                <CameraInspector
+                                  library={cameraLibrary}
+                                  preview
+                                  onHistory={() => setInspectorTab("photos")}
+                                  onControls={openCameraControls}
+                                />
+                              )}
+                              <details className="sensor-information">
+                                <summary>{t("Sensor information")}</summary>
+                                <dl>
+                                  {[
+                                    [
+                                      t("Temperature"),
+                                      detail.temperature === undefined
+                                        ? t("Not reported")
+                                        : `${temperatureText(detail.temperature)}C${temperatureIsStale(detail, snap, now) ? t(" · last known") : ""}`,
+                                    ],
+                                    [
+                                      t("Temperature fetched"),
+                                      madrid(detail.temperatureFetchedAt, true),
+                                    ],
+                                    [t("Activity"), t(deviceState(detail))],
+                                    [
+                                      t("Mounted on"),
+                                      detail.mount
+                                        ? `${prefs.names === "spanish" ? (detail.mount === "window" ? "Ventana" : "Puerta") : detail.mount === "window" ? t("Window") : t("Door")}${detail.mountIndex !== undefined ? ` ${detail.mountIndex}` : ""}`
+                                        : t("Not reported"),
+                                    ],
+                                    [
+                                      t("Device health"),
+                                      t(deviceHealth(detail)),
+                                    ],
+                                    [
+                                      t("Battery"),
+                                      detail.batteryLow === undefined
+                                        ? t("Not reported")
+                                        : detail.batteryLow
+                                          ? t("Low")
+                                          : t("No low-battery flag"),
+                                    ],
+                                    [t("Tamper"), t("Not supplied by API")],
+                                    [
+                                      t("Last change"),
+                                      madrid(detail.changedAt, true),
+                                    ],
+                                    [
+                                      t("Data fetched"),
+                                      madrid(detail.fetchedAt, true),
+                                    ],
+                                    [
+                                      t("Last sensor report"),
+                                      t("Not supplied by API"),
+                                    ],
+                                    [t("Original name"), detail.original],
+                                    [t("Device type"), detail.type],
+                                    [t("Stable ID"), detail.id],
+                                  ].map(([k, v]) => (
+                                    <div key={k}>
+                                      <dt>{k}</dt>
+                                      <dd>{v}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                                <p className="note">
+                                  {t(
+                                    "All times Europe/Madrid. A successful fetch does not establish when the sensor last reported.",
+                                  )}
+                                </p>
+                              </details>
+                              <details className="local-edit">
+                                <summary>{t("Local names & groups")}</summary>
+                                <p>{t("Saved on this computer only.")}</p>
+                                {[
+                                  ["name", t("Friendly name")],
+                                  ["spanish", "Nombre en español"],
+                                  ["floor", t("Floor group")],
+                                  ["room", t("Room group")],
+                                ].map(([key, label]) => (
+                                  <label key={key}>
+                                    {label}
+                                    <input
+                                      value={
+                                        prefs.aliases[detail.id]?.[
+                                          key as "name"
+                                        ] || ""
+                                      }
+                                      placeholder={
+                                        key === "spanish"
+                                          ? detail.spanish || detail.original
+                                          : key === "floor"
+                                            ? location(detail, prefs).floor
+                                            : key === "room"
+                                              ? location(detail, prefs).room
+                                              : detail.original
+                                      }
+                                      onChange={(e) =>
+                                        save({
+                                          ...prefs,
+                                          aliases: {
+                                            ...prefs.aliases,
+                                            [detail.id]: {
+                                              ...prefs.aliases[detail.id],
+                                              [key]: e.target.value,
+                                            },
+                                          },
+                                        })
+                                      }
+                                    />
+                                  </label>
+                                ))}
+                              </details>
+                            </aside>
+                          )}
                         </div>
-                      </aside>
-                    )}
+                      </div>
+                      <>
+                        <div
+                          id="inspector-panel-map"
+                          role="tabpanel"
+                          aria-labelledby="inspector-tab-map"
+                          hidden={inspectorTab !== "map"}
+                        >
+                          <SensorLocation
+                            snap={snap}
+                            prefs={prefs}
+                            selected={detail}
+                            focusRoom={roomFocus}
+                            focusFloor={floorFocus}
+                            onSelect={setSelected}
+                          />
+                        </div>
+                        {selectedCamera && (
+                          <div
+                            id="inspector-panel-photos"
+                            role="tabpanel"
+                            aria-labelledby="inspector-tab-photos"
+                            hidden={inspectorTab !== "photos"}
+                          >
+                            <CameraInspector
+                              library={cameraLibrary}
+                              onHistory={() => setInspectorTab("photos")}
+                              onControls={openCameraControls}
+                            />
+                          </div>
+                        )}
+                        <div
+                          id="inspector-panel-activity"
+                          role="tabpanel"
+                          aria-labelledby="inspector-tab-activity"
+                          hidden={inspectorTab !== "activity"}
+                        >
+                          <ActivityDay
+                            snap={snap}
+                            prefs={prefs}
+                            sensor={detail}
+                            selected={activityDate}
+                            sensorOnly={activitySensorOnly}
+                            onScopeChange={setActivitySensorOnly}
+                            onSelectSensor={(id) => {
+                              setSelected(id);
+                              setInspectorTab("details");
+                            }}
+                          />
+                        </div>
+                      </>
+                    </div>
                   </div>
+                  <ActivityCalendar
+                    snap={snap}
+                    now={now}
+                    sensor={detail}
+                    selected={activityDate}
+                    onSelectDate={showDay}
+                    sensorOnly={activitySensorOnly}
+                    onHistory={() => setView("activity")}
+                  />
                   <div className="sensor-footnote">
-                    <Icon name="info" size={13} />
-                    <span>
-                      {t(
-                        "“Not reported” means activity is unavailable. Health flags are separate.",
-                      )}{" "}
-                      {prefs.density === "comfortable" || detail
-                        ? t(
-                            "Scroll to review every sensor; none are paginated or collapsed.",
-                          )
-                        : t(
-                            "At smaller window heights, scroll to review every sensor.",
-                          )}
-                    </span>
                     <span>
                       {t("Contacts fetched")} {madrid(snap.contactsAt)} · Madrid
                     </span>
                   </div>
-                  <section className="recent">
-                    <div>
-                      <Icon name="clock" size={17} />
-                      <h3>{t("Recent activity")}</h3>
-                      <span>Europe/Madrid</span>
-                      <button onClick={() => setView("activity")}>
-                        {t("View history")} <Icon name="arrow" size={13} />
-                      </button>
-                    </div>
-                    <div className="recent-items">
-                      {snap.events.slice(0, 3).map((e) => (
-                        <article key={e.id}>
-                          <time>
-                            {e.time
-                              ? madrid(e.time)
-                              : e.localTime || t("Unknown time")}
-                          </time>
-                          <span>{eventDescription(e)}</span>
-                          {e.user && <small>{e.user}</small>}
-                        </article>
-                      ))}
-                    </div>
-                  </section>
                 </>
               )}
               {view === "activity" && (
@@ -1199,28 +1123,17 @@ export default function App() {
                       </option>
                     </select>
                   </div>
-                  <p>
-                    {t("All times in Europe/Madrid ·")} {visibleEvents.length}{" "}
-                    {t("shown from")} {snap.events.length} {t("loaded /")}{" "}
-                    {snap.totalEvents}{" "}
-                    {t(
-                      "total records. Latest 80 records available in this version.",
-                    )}
-                  </p>
+                  <p>{t("Latest 80 records")} · Europe/Madrid</p>
                   <div className="timeline">
                     {visibleEvents.map((e) => (
                       <article key={e.id}>
-                        <span className="timeline-icon">
-                          <Icon name={/arm/.test(e.type) ? "shield" : "info"} />
-                        </span>
-                        <div>
-                          <h3>{eventDescription(e)}</h3>
-                          <p>
-                            {e.user
-                              ? t("By {0}", e.user)
-                              : t("Actor not supplied")}{" "}
-                            · <time>{eventTime(e)}</time> · Madrid
-                          </p>
+                        <ActivityActionIcon event={e} />
+                        <div className="activity-event-content">
+                          <div className="activity-event-heading">
+                            <h3>{eventDescription(e)}</h3>
+                            <time dateTime={e.time}>{eventTime(e)}</time>
+                          </div>
+                          <ActivityActor event={e} people={snap.keyTagPeople} />
                         </div>
                       </article>
                     ))}
@@ -1248,7 +1161,7 @@ export default function App() {
                         {snap.demo
                           ? t("Explore safely with simulated data.")
                           : "Connected to " +
-                            snap.name +
+                            homeName +
                             ". Live controls start disabled."}
                       </p>
                       <button
@@ -1262,6 +1175,49 @@ export default function App() {
                       </button>
                       {!snap.demo && (
                         <>
+                          {panels.length > 1 && (
+                            <label>
+                              {t("Connected house")}
+                              <select
+                                aria-label={t("Connected house")}
+                                value={snap.panelId}
+                                disabled={pending || busy}
+                                onChange={(e) =>
+                                  void perform(() =>
+                                    selectProperty(e.target.value),
+                                  )
+                                }
+                              >
+                                {panels.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {prefs.homeNames?.[p.id] || p.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
+                          <label>
+                            {t("House display name")}
+                            <input
+                              value={prefs.homeNames?.[snap.panelId] || ""}
+                              placeholder={snap.name}
+                              maxLength={500}
+                              onChange={(e) =>
+                                save({
+                                  ...prefs,
+                                  homeNames: {
+                                    ...prefs.homeNames,
+                                    [snap.panelId]: e.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </label>
+                          <p className="note">
+                            {t(
+                              "This name is saved only on this computer. It does not rename your Sector Alarm account.",
+                            )}
+                          </p>
                           <div className="alarm-controls-card">
                             <div className="alarm-controls-heading">
                               <strong>{t("Alarm controls")}</strong>
@@ -1414,6 +1370,7 @@ export default function App() {
                       <label>
                         {t("Sensor density")}
                         <select
+                          aria-label={t("Sensor density")}
                           value={prefs.density}
                           onChange={(e) =>
                             save({
@@ -1465,6 +1422,7 @@ export default function App() {
                         </div>
                       </dl>
                     </section>
+                    <TemperatureSettings prefs={prefs} onSave={save} />
                     {snap.demo && (
                       <section className="scenario-settings">
                         <h3>
@@ -1521,7 +1479,7 @@ export default function App() {
           <p>
             {snap.demo
               ? t("This affects the demo only.")
-              : t("This will change the alarm at {0}.", snap.name)}
+              : t("This will change the alarm at {0}.", homeName)}
           </p>
           <label>
             {t("Requested mode")}
@@ -1743,11 +1701,7 @@ export default function App() {
                   key={p.id}
                   onClick={() =>
                     void perform(async () => {
-                      const s = await bridge.select(p.id);
-                      setConnect(false);
-                      setDemoChosen(false);
-                      setView("overview");
-                      return s;
+                      await selectProperty(p.id);
                     })
                   }
                 >

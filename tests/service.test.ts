@@ -268,3 +268,29 @@ describe("account property discovery", () => {
     ]);
   });
 });
+
+it("reads optional tag identities at most hourly and clears them when changing property", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-09T20:00:00Z"));
+  const t = setup();
+  const original = t.api.request.getMockImplementation()!;
+  let peopleReads = 0;
+  t.api.request.mockImplementation(async (path, body) => {
+    if (path.startsWith("/api/persons/panels/")) {
+      peopleReads++;
+      if (peopleReads > 1) throw new ApiError("Not supported", 404);
+      return [{ FirstName: "Ana", Tag: { Color: "yellow" } }];
+    }
+    return original(path, body);
+  });
+  await t.monitor.login("e", "p");
+  await t.monitor.select("1");
+  expect(t.monitor.snap.keyTagPeople?.[0].color).toBe("yellow");
+  vi.advanceTimersByTime(16000);
+  await t.monitor.refresh(true);
+  expect(peopleReads).toBe(1);
+  await t.monitor.select("1");
+  expect(peopleReads).toBe(2);
+  expect(t.monitor.snap.keyTagPeople).toEqual([]);
+  expect(t.monitor.snap.warnings.people).toBeUndefined();
+});

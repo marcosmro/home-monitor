@@ -24,10 +24,8 @@ test("UI language switches independently of names and persists", async ({
   await page
     .getByRole("button", { name: "Vista general", exact: true })
     .click();
-  await expect(page.locator(".sensor-row")).toHaveCount(48);
-  await expect(page.locator(".coverage")).toContainText(
-    "Mostrando los 48 sensores disponibles",
-  );
+  await expect(page.locator(".matrix-sensor")).toHaveCount(48);
+  await expect(page.locator(".matrix-total")).toContainText("48 sensores");
   await page.getByRole("button", { name: "Desactivar", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "Solo afecta a la demostración.",

@@ -17,7 +17,22 @@ import { madrid } from "../../shared/time";
 import { bridge } from "./bridge";
 import { Icon } from "./icons";
 
-function PhotoImage({
+// Share image reads between the thumbnail and viewer of one library result.
+// Metadata objects are scoped to a library response, so identical IDs from a
+// different account never reuse image bytes. Dropped pages can be collected.
+const photoImages = new WeakMap<Photo, Promise<string>>();
+function readPhotoImage(photo: Photo) {
+  const existing = photoImages.get(photo);
+  if (existing) return existing;
+  const request = bridge.photoImage(photo.id).catch((error) => {
+    photoImages.delete(photo);
+    throw error;
+  });
+  photoImages.set(photo, request);
+  return request;
+}
+
+export function PhotoImage({
   photo,
   large = false,
   zoom = 1,
@@ -31,8 +46,9 @@ function PhotoImage({
     [error, setError] = useState("");
   useEffect(() => {
     let active = true;
-    bridge
-      .photoImage(photo.id)
+    setSrc("");
+    setError("");
+    readPhotoImage(photo)
       .then((value) => {
         if (active) setSrc(value);
       })
@@ -42,7 +58,7 @@ function PhotoImage({
     return () => {
       active = false;
     };
-  }, [photo.id]);
+  }, [photo]);
   return (
     <div
       className={`photo-image ${large ? "large" : ""}`}
@@ -72,7 +88,7 @@ function PhotoImage({
     </div>
   );
 }
-function ZoomPhoto({ photo }: { photo: Photo }) {
+export function ZoomPhoto({ photo }: { photo: Photo }) {
   const { t } = useLanguage();
   const [zoom, setZoom] = useState(1);
   const pan = useRef<HTMLDivElement>(null);
@@ -156,14 +172,23 @@ function ZoomPhoto({ photo }: { photo: Photo }) {
 export function Cameras({
   snap,
   prefs,
+  initialCameraId,
+  onInspect,
 }: {
   snap: Snapshot;
   prefs: Preferences;
+  initialCameraId?: string;
+  onInspect?: (id: string) => void;
 }) {
   const { t } = useLanguage();
   const cameras = snap.devices.filter(isCamera);
   const [now, setNow] = useState(Date.now());
   const viewer = useRef<HTMLDialogElement>(null);
+  const focusedCard = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (initialCameraId)
+      focusedCard.current?.scrollIntoView({ block: "center" });
+  }, [initialCameraId]);
   const [job, setJob] = useState<CaptureJob>({
     running: false,
     stopping: false,
@@ -175,7 +200,7 @@ export function Cameras({
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<Photo>(),
-    [filter, setFilter] = useState("all");
+    [filter, setFilter] = useState(initialCameraId || "all");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   useEffect(() => {
     if (selected) viewer.current?.showModal();
@@ -194,8 +219,14 @@ export function Cameras({
       try {
         const value = await bridge.cameraState();
         if (alive) {
-          setJob(value);
-          setNow(Date.now());
+          setJob((previous) =>
+            previous.revision === value.revision &&
+            previous.running === value.running &&
+            previous.stopping === value.stopping
+              ? previous
+              : value,
+          );
+          if (value.running) setNow(Date.now());
         }
       } catch (e) {
         if (alive) setError((e as Error).message);
@@ -417,7 +448,8 @@ export function Cameras({
             latest = photos.find((p) => p.cameraId === d.id);
           return (
             <article
-              className={`camera-card ${item?.state === "capturing" ? "is-capturing" : ""}`}
+              ref={initialCameraId === d.id ? focusedCard : undefined}
+              className={`camera-card ${initialCameraId === d.id ? "is-selected" : ""} ${item?.state === "capturing" ? "is-capturing" : ""}`}
               key={d.id}
             >
               <div className="camera-thumbnail">
@@ -460,6 +492,14 @@ export function Cameras({
                       : t("Latest saved photo")}{" "}
                     · {madrid(latest.receivedAt, true)}
                   </p>
+                )}
+                {onInspect && (
+                  <button
+                    className="camera-inspect-link"
+                    onClick={() => onInspect(d.id)}
+                  >
+                    {t("Show on floor plan")} <Icon name="arrow" size={12} />
+                  </button>
                 )}
                 <div className="camera-card-actions">
                   <span

@@ -319,6 +319,7 @@ export function logs(raw: unknown, devices: Device[] = []): Event[] {
           ? e.Time
           : undefined,
       user: str(e.User) || undefined,
+      channel: str(e.Channel) || undefined,
     };
   });
 }

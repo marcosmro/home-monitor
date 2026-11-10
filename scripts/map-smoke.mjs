@@ -20,7 +20,7 @@ try {
   });
   app = await launch();
   let page = await app.firstWindow();
-  await page.locator(".sensor-row").first().waitFor();
+  await page.locator(".matrix-sensor").first().waitFor();
   const result = await page.evaluate(async () => {
     const map = await window.home.houseMap();
     for (const plan of map.plans) {
@@ -53,7 +53,7 @@ try {
   await app.close();
   app = await launch();
   page = await app.firstWindow();
-  await page.locator(".sensor-row").first().waitFor();
+  await page.locator(".matrix-sensor").first().waitFor();
   await page.getByRole("button", { name: "House map", exact: true }).click();
   await page.locator(".map-pin.confirmed").waitFor();
   assert.equal(

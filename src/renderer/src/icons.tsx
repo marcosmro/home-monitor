@@ -1,5 +1,23 @@
 export function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
+    key: (
+      <>
+        <circle cx="15" cy="8" r="5" />
+        <path d="m11.5 11.5-8 8V22H7v-3h3v-3l3-3" />
+      </>
+    ),
+    unlock: (
+      <>
+        <rect x="5" y="10" width="14" height="11" rx="2" />
+        <path d="M9 10V6a4 4 0 0 1 8 0M12 14v3" />
+      </>
+    ),
+    "shield-half": (
+      <>
+        <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z" />
+        <path d="M12 3v18" />
+      </>
+    ),
     minus: <path d="M7 12h10" />,
     "door-open": (
       <>

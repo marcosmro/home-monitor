@@ -9,17 +9,17 @@ test("startup requires an explicit demo choice and login cancellation stays on w
   await expect(
     page.getByRole("heading", { name: "Welcome to Home Monitor" }),
   ).toBeVisible();
-  await expect(page.locator(".sensor-row")).toHaveCount(0);
+  await expect(page.locator(".matrix-sensor")).toHaveCount(0);
   await page.getByRole("button", { name: "Log in to my account" }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "Browser preview is demo only",
   );
   await page.getByRole("button", { name: "Close dialog" }).click();
-  await expect(page.locator(".sensor-row")).toHaveCount(0);
+  await expect(page.locator(".matrix-sensor")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Start demo mode", exact: true })
     .click();
-  await expect(page.locator(".sensor-row")).toHaveCount(48);
+  await expect(page.locator(".matrix-sensor")).toHaveCount(48);
   await expect(page.locator(".mode-badge")).toHaveText("DEMO HOME");
 });
 
@@ -34,6 +34,7 @@ for (const count of [1, 2]) {
           name: `My home ${i}`,
         }));
         window.home = {
+          houseMap: async () => ({ plans: [], rooms: [], placements: {} }),
           snapshot: async () => snapshot,
           preferences: async () => preferences,
           subscribe: () => () => {},
@@ -42,14 +43,18 @@ for (const count of [1, 2]) {
             return panels;
           },
           savedLogin: async () => panels,
-          select: async (id: string) => ({
-            ...snapshot,
-            demo: false,
-            panelId: id,
-            name: panels.find((p) => p.id === id)!.name,
-            devices: [],
-            readOnly: true,
-          }),
+          savePreferences: async () => {},
+          select: async (id: string) => {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            return {
+              ...snapshot,
+              demo: false,
+              panelId: id,
+              name: panels.find((p) => p.id === id)!.name,
+              devices: [],
+              readOnly: true,
+            };
+          },
           logout: async () => snapshot,
         } as unknown as typeof window.home;
       },
@@ -61,19 +66,38 @@ for (const count of [1, 2]) {
     await page.getByLabel("Password", { exact: true }).fill("wrong");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Invalid credentials");
-    await expect(page.locator(".sensor-row")).toHaveCount(0);
+    await expect(page.locator(".matrix-sensor")).toHaveCount(0);
     await page.getByLabel("Password", { exact: true }).fill("correct");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    if (count > 1) {
-      await expect(
-        page.getByRole("heading", { name: "Select a property" }),
-      ).toBeVisible();
-      await expect(page.locator(".mode-badge")).toHaveCount(0);
-      await page.getByRole("button", { name: "My home 1" }).click();
-    }
+    await expect(
+      page.getByRole("heading", { name: "Opening your home…" }),
+    ).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.locator(".mode-badge")).toHaveText("LIVE ACCOUNT");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page
+      .getByLabel("House display name", { exact: true })
+      .fill("Tabolado 17");
+    await expect(page.locator(".app")).toContainText("Tabolado 17");
+    if (count > 1) {
+      await page
+        .getByLabel("Connected house", { exact: true })
+        .selectOption("home-1");
+      await expect(
+        page.getByLabel("Connected house", { exact: true }),
+      ).toHaveValue("home-1");
+      await expect(
+        page.getByLabel("House display name", { exact: true }),
+      ).toHaveValue("");
+      await page
+        .getByLabel("Connected house", { exact: true })
+        .selectOption("home-0");
+      await expect(
+        page.getByLabel("House display name", { exact: true }),
+      ).toHaveValue("Tabolado 17");
+    }
+
     await page
       .getByRole("button", { name: "Disconnect & forget saved account" })
       .click();
@@ -90,6 +114,7 @@ test("saved account identifies the email and lets users switch accounts", async 
   await page.addInitScript(
     ({ snapshot, preferences }) => {
       window.home = {
+        houseMap: async () => ({ plans: [], rooms: [], placements: {} }),
         snapshot: async () => snapshot,
         preferences: async () => preferences,
         subscribe: () => () => {},
@@ -128,6 +153,7 @@ test("alarm controls explain their effect and can be enabled and disabled", asyn
     ({ snapshot, preferences }) => {
       let current = { ...snapshot, demo: false, readOnly: true };
       window.home = {
+        houseMap: async () => ({ plans: [], rooms: [], placements: {} }),
         snapshot: async () => current,
         preferences: async () => preferences,
         subscribe: () => () => {},
