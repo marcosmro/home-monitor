@@ -21,6 +21,7 @@ function replay(panelId: string, change: (p: any) => void = () => {}) {
         if (p.state) return p.state;
         throw new ApiError("Unavailable", 404);
       }
+      if (path.includes("GetSmartplugStatus?")) return p.smartplugs;
       if (path.includes("GetPanelStatus?")) return p.status;
       if (path.includes("/logs?")) return p.logs;
       const key = path.endsWith("/doorsandwindows/propertyplan")
@@ -136,6 +137,34 @@ describe("replay of the working reference project’s synthetic raw responses", 
     expect(s.warnings.status).toContain("not recognized");
     expect(t.reads.some((x) => x.includes("GetPanelStatus"))).toBe(false);
     expect(s.devices.length).toBeGreaterThan(10);
+  });
+});
+describe("smart plug refresh", () => {
+  it("loads plugs alongside sensors and retains stale states after a failed read", async () => {
+    vi.useFakeTimers();
+    try {
+      const t = replay("00099999");
+      const s = await connect(t, "00099999");
+      expect(s.devices.find((d) => d.id === "smartplug:9")?.plugState).toBe(
+        "off",
+      );
+      t.p.smartplugs = {};
+      vi.advanceTimersByTime(1800001);
+      await t.monitor.refresh();
+      const plug = t.monitor.snap.devices.find((d) => d.id === "smartplug:9");
+      expect(plug?.plugState).toBe("off");
+      expect(plug?.stale).toBe(true);
+      expect(t.monitor.snap.warnings.smartplugs).toContain("not recognized");
+      t.p.smartplugs = [{ Id: "9", Status: "On" }];
+      vi.advanceTimersByTime(1800001);
+      await t.monitor.refresh();
+      expect(
+        t.monitor.snap.devices.find((d) => d.id === "smartplug:9")?.plugState,
+      ).toBe("on");
+      expect(t.monitor.snap.warnings.smartplugs).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 describe("legacy normalization without fabricated healthy flags", () => {

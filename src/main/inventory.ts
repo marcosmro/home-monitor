@@ -1,3 +1,4 @@
+import { smartPlugs } from "../shared/smart-plugs";
 import { ApiError, type SectorApi } from "./api";
 import { plan, legacyPlan } from "../shared/normalize";
 import { climatePlan, type Climate } from "../shared/climate";
@@ -113,6 +114,14 @@ export class InventoryReader {
           new Date().toISOString(),
           "CameraPIR",
         ),
+    );
+  }
+  async smartplugs() {
+    return smartPlugs(
+      await this.api.request(
+        `/api/Panel/GetSmartplugStatus?panelId=${this.id}`,
+      ),
+      new Date().toISOString(),
     );
   }
   async smoke() {

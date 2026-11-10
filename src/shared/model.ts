@@ -7,6 +7,9 @@ export type Phase =
   "idle" | "sending" | "awaiting" | "confirmed" | "failed" | "unknown";
 export interface Device {
   id: string;
+  plugState?: "on" | "off" | "unknown";
+  timerActive?: boolean;
+  manufacturer?: string;
   cameraRoute?: "modern" | "legacy";
   legacyCameraId?: string;
   original: string;
@@ -35,7 +38,8 @@ export interface Device {
   temperatureStale?: boolean;
   changedAt?: string;
   fetchedAt: string;
-  source: "contacts" | "telemetry" | "cameras" | "smoke" | "flood";
+  source:
+    "contacts" | "telemetry" | "cameras" | "smoke" | "flood" | "smartplugs";
   stale?: boolean;
 }
 export interface Area {
@@ -178,12 +182,19 @@ export function age(at?: string, now = Date.now()) {
 export function deviceState(d: Device) {
   if (d.alarm === true) return "Alarm";
   if (d.offline === true) return "Last known";
+  if (d.plugState)
+    return d.plugState === "on"
+      ? "On"
+      : d.plugState === "off"
+        ? "Off"
+        : "Unknown";
   if (d.closed === true) return "Closed";
   if (d.closed === false) return "Open";
   return "Not reported";
 }
 export function deviceHealth(d: Device) {
   if (d.offline) return "Offline";
+  if (d.type === "SmartPlug" && d.offline === false) return "Connected";
   if (d.batteryCritical) return "Critical battery";
   if (d.batteryLow) return "Low battery";
   if (d.bypass) return "Bypassed";

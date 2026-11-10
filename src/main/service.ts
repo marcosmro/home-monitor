@@ -1,3 +1,4 @@
+import { smartPlugs } from "../shared/smart-plugs";
 import { keyTagPeople } from "../shared/activity-identity";
 import { isCamera } from "../shared/cameras";
 import { SectorApi, ApiError, CaptureOutcomeUnknown } from "./api";
@@ -16,6 +17,7 @@ export class Monitor {
   private selecting = false;
   private legacyState = false;
   private inventory?: InventoryReader;
+  private hasSmartPlugs = false;
   private extras: Record<string, Device[]> = {};
   private lastAttempt: Record<string, number> = {};
   panels: Array<{ id: string; name: string }> = [];
@@ -77,6 +79,14 @@ export class Monitor {
       this.legacyState = false;
       this.inventory = new InventoryReader(this.api, id);
       this.extras = {};
+      this.hasSmartPlugs =
+        (Array.isArray(p.Smartplugs) && p.Smartplugs.length > 0) ||
+        (Array.isArray(p.Access) && p.Access.includes("Smartplugs"));
+      if (Array.isArray(p.Smartplugs))
+        this.extras.smartplugs = smartPlugs(
+          p.Smartplugs,
+          new Date().toISOString(),
+        );
       this.contacts = [];
       this.telemetry = [];
       this.lastAttempt = {};
@@ -160,6 +170,11 @@ export class Monitor {
         });
         await run("flood", 1800000, async () => {
           this.extras.flood = await this.inventory!.flood();
+        });
+      }
+      if (this.hasSmartPlugs) {
+        await run("smartplugs", 900000, async () => {
+          this.extras.smartplugs = await this.inventory!.smartplugs();
         });
       }
       await run("events", 600000, async () => {

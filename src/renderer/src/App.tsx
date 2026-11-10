@@ -778,7 +778,8 @@ export default function App() {
                     snap.warnings.inventory ||
                     snap.warnings.cameras ||
                     snap.warnings.smoke ||
-                    snap.warnings.flood) && (
+                    snap.warnings.flood ||
+                    snap.warnings.smartplugs) && (
                     <p className="note" role="status">
                       {t("Inventory may be incomplete")}
                     </p>
@@ -931,9 +932,32 @@ export default function App() {
                                 <div>
                                   <span>{t("Activity")}</span>
                                   <strong>{t(deviceState(detail))}</strong>
-                                  <small>{t(deviceHealth(detail))}</small>
+                                  <small>
+                                    {detail.stale
+                                      ? `${t("Last known")} · `
+                                      : ""}
+                                    {t(deviceHealth(detail))}
+                                  </small>
                                 </div>
                               </div>
+                              {detail.type === "SmartPlug" && (
+                                <dl>
+                                  <dt>{t("Timer")}</dt>
+                                  <dd>
+                                    {t(
+                                      detail.timerActive === undefined
+                                        ? "Not reported"
+                                        : detail.timerActive
+                                          ? "On"
+                                          : "Off",
+                                    )}
+                                  </dd>
+                                  <dt>{t("Manufacturer")}</dt>
+                                  <dd>
+                                    {detail.manufacturer || t("Not reported")}
+                                  </dd>
+                                </dl>
+                              )}
                               {selectedCamera && (
                                 <CameraInspector
                                   library={cameraLibrary}

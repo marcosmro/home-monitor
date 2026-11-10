@@ -1,5 +1,8 @@
 export function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
+    plug: (
+      <path d="M8 3v5m8-5v5M6 8h12v4a6 6 0 0 1-6 6v4m-6-14v4a6 6 0 0 0 6 6" />
+    ),
     key: (
       <>
         <circle cx="15" cy="8" r="5" />
@@ -175,6 +178,7 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
   );
 }
 export function deviceIcon(type: string) {
+  if (type === "SmartPlug") return "plug";
   return type.includes("Contact") || type === "VibrationSensor"
     ? "window"
     : type.includes("Smoke")
@@ -189,6 +193,7 @@ export function typeLabel(type: string) {
   return (
     (
       {
+        SmartPlug: "Smart plug",
         MagneticContact: "Contact",
         VibrationSensor: "Contact / shock",
         SmokeDetector: "Smoke",

@@ -491,7 +491,6 @@
   "Latest reading": "Última lectura",
   "Activity scope": "Ámbito de actividad",
   "Whole home": "Toda la casa",
-  "Selected sensor": "Sensor seleccionado",
   "Only explicitly linked events": "Solo eventos vinculados explícitamente",
   "One square per sensor · symbols: no temperature · dotted number: last known": "Una casilla por sensor · símbolos: sin temperatura · número subrayado: última lectura conocida",
   "Sensors by room": "Sensores por habitación",
@@ -555,5 +554,10 @@
   "Inventory may be incomplete": "El inventario puede estar incompleto",
   "{0} events": "{0} eventos",
   "No activity available for this day.": "No hay actividad disponible para este día.",
-  "Latest 80 records": "Últimos 80 registros"
+  "Latest 80 records": "Últimos 80 registros",
+  "Smart plug": "Enchufe inteligente",
+  "On": "Encendido",
+  "Off": "Apagado",
+  "Timer": "Temporizador",
+  "Manufacturer": "Fabricante"
 }
