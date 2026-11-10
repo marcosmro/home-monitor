@@ -27,7 +27,7 @@ test("future days cannot be clicked or focused, and month navigation stops at th
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(today).toHaveAttribute("aria-pressed", "true");
   await expect(
-    page.getByRole("tab", { name: "Floor plan", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await future.evaluate((el) => (el as HTMLButtonElement).focus());
   await expect(future).not.toBeFocused();

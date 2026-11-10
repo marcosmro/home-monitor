@@ -11,7 +11,7 @@ test("numeric temperatures remain independent of temperature color settings", as
     .getByRole("button", { name: "Start demo mode", exact: true })
     .click();
   await expect(page.locator(".matrix-temperature")).toHaveCount(12);
-  await expect(page.locator(".matrix-sensor > svg")).toHaveCount(36);
+  await expect(page.locator(".matrix-sensor > svg")).toHaveCount(48);
   const sensor = page
     .locator(".matrix-sensor")
     .filter({ has: page.locator(".matrix-temperature") })
@@ -69,18 +69,17 @@ test("matrix defaults to a tabbed inspector and preserves sensor and map selecti
   ).toHaveCount(0);
   await expect(page.locator(".matrix-sensor")).toHaveCount(48);
   await expect(
-    page.getByRole("tab", { name: "Floor plan", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel")).toHaveCount(1);
+  await expect(page.getByRole("tab").first()).toHaveText("Sensor");
   await page.locator(".matrix-sensor").nth(16).click();
   await expect(
-    page.getByRole("tab", { name: "Details", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(
-    page.getByRole("complementary", { name: "Sensor details" }),
+    page.getByRole("complementary", { name: "Selected sensor" }),
   ).toBeVisible();
-  await expect(page.locator(".sensor-location")).toBeHidden();
-  await page.getByRole("tab", { name: "Floor plan", exact: true }).click();
   await expect(page.locator(".location-plan")).toHaveAttribute(
     "data-plan-id",
     "f1",
@@ -97,15 +96,15 @@ test("matrix defaults to a tabbed inspector and preserves sensor and map selecti
   ).toHaveAttribute("aria-label", "Show room Despacho");
   await page.locator(".location-pin").nth(8).click();
   await expect(
-    page.getByRole("tab", { name: "Floor plan", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "Details", exact: true }).click();
   await expect(page.locator(".detail-panel > p")).toContainText("Despacho");
   await page
     .getByRole("tab", { name: "Details", exact: true })
-    .press("ArrowRight");
+    .press("ArrowLeft");
   await expect(
-    page.getByRole("tab", { name: "Floor plan", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toBeFocused();
   await expect(page.getByRole("tabpanel")).toHaveCount(1);
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -145,7 +144,7 @@ test("bottom day strip routes events into the activity tab without growing", asy
   await expect(page.locator(".calendar-event-list")).toContainText(
     "Low sensor battery",
   );
-  await page.getByRole("tab", { name: "Floor plan", exact: true }).click();
+  await page.getByRole("tab", { name: "Sensor", exact: true }).click();
   await page.getByRole("tab", { name: "Activity", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Selected sensor", exact: true }),
@@ -191,7 +190,7 @@ test("filtering and responsive tabs retain inventory without page overflow", asy
     await expect(page.locator(".matrix-sensor")).toHaveCount(48);
     await page.locator(".matrix-sensor").first().click();
     await expect(page.getByRole("tabpanel")).toHaveCount(1);
-    await page.getByRole("tab", { name: "Floor plan", exact: true }).click();
+    await page.getByRole("tab", { name: "Sensor", exact: true }).click();
     await expect(page.locator(".location-pin.is-selected")).toHaveCount(1);
   }
   await page
@@ -283,10 +282,10 @@ test("small-screen matrix selection reveals and focuses the inspector", async ({
     .click();
   await page.locator(".matrix-sensor").nth(16).click();
   await expect(
-    page.getByRole("tab", { name: "Details", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toBeFocused();
   await expect(
-    page.getByRole("tab", { name: "Details", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toBeInViewport();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
@@ -339,7 +338,7 @@ test("floor plan fills the matching panel and ignores hover and passive focus", 
     )
     .toBeGreaterThan(250);
   await page.locator(".matrix-sensor").first().click();
-  await page.getByRole("tab", { name: "Floor plan", exact: true }).click();
+  await page.getByRole("tab", { name: "Sensor", exact: true }).click();
   const selection = await page
     .locator('.matrix-sensor[aria-pressed="true"]')
     .getAttribute("aria-label");
@@ -358,7 +357,7 @@ test("floor plan fills the matching panel and ignores hover and passive focus", 
     "f0",
   );
   await page.locator(".matrix-sensor").nth(16).press("Enter");
-  await page.getByRole("tab", { name: "Floor plan", exact: true }).click();
+  await page.getByRole("tab", { name: "Sensor", exact: true }).click();
   await expect(page.locator(".location-plan")).toHaveAttribute(
     "data-plan-id",
     "f1",
@@ -467,7 +466,7 @@ test("floor headings navigate the clean map panel by click and keyboard", async 
     .click();
   await expect(plan).toHaveAttribute("data-plan-id", "f1");
   await expect(
-    page.getByRole("tab", { name: "Floor plan", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   const basement = page.getByRole("button", {
     name: "Show floor Sótano",
@@ -479,7 +478,7 @@ test("floor headings navigate the clean map panel by click and keyboard", async 
   await expect(plan).toHaveAttribute("data-plan-id", "f2");
   await expect(basement).toHaveAttribute("aria-pressed", "true");
   await page.locator(".matrix-sensor").first().click();
-  await page.getByRole("tab", { name: "Floor plan", exact: true }).click();
+  await page.getByRole("tab", { name: "Sensor", exact: true }).click();
   await expect(plan).toHaveAttribute("data-plan-id", "f0");
   await expect(page.locator(".location-pin.is-selected")).toHaveCount(1);
   await page.setViewportSize({ width: 390, height: 850 });
@@ -488,6 +487,6 @@ test("floor headings navigate the clean map panel by click and keyboard", async 
     .click();
   await expect(plan).toHaveAttribute("data-plan-id", "f1");
   await expect(
-    page.getByRole("tab", { name: "Floor plan", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toBeInViewport();
 });

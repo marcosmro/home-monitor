@@ -39,11 +39,17 @@ export function HouseMap({
   snap,
   prefs,
   initialSelectedId,
+  initialPlanId,
+  initialEdit = false,
+  onFinishEditing,
   onInspect,
 }: {
   snap: Snapshot;
   prefs: Preferences;
   initialSelectedId?: string;
+  initialPlanId?: string;
+  initialEdit?: boolean;
+  onFinishEditing?: () => void;
   onInspect?: (id: string) => void;
 }) {
   const { t } = useLanguage();
@@ -52,7 +58,7 @@ export function HouseMap({
   const [planId, setPlanId] = useState(""),
     [image, setImage] = useState(""),
     [zoom, setZoom] = useState(1),
-    [edit, setEdit] = useState(false);
+    [edit, setEdit] = useState(initialEdit);
   const photoDialog = useRef<HTMLDialogElement>(null);
   const [threeD, setThreeD] = useState(false);
   const [reference, setReference] = useState(false);
@@ -92,7 +98,8 @@ export function HouseMap({
             ...d.placements,
           };
           setPlanId(
-            (initialSelectedId && positions[initialSelectedId]?.planId) ||
+            initialPlanId ||
+              (initialSelectedId && positions[initialSelectedId]?.planId) ||
               d.plans[0]?.id ||
               "",
           );
@@ -294,6 +301,10 @@ export function HouseMap({
           className={edit ? "primary" : ""}
           aria-pressed={edit}
           onClick={() => {
+            if (edit && onFinishEditing) {
+              onFinishEditing();
+              return;
+            }
             setThreeD(false);
             setEdit(!edit);
           }}

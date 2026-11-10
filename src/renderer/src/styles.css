@@ -3267,7 +3267,7 @@ dialog .banner {
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
-.matrix-dashboard .matrix-sensor.closed {
+.matrix-dashboard .matrix-sensor.healthy {
   background: var(--green-bg);
   color: var(--green);
   border-color: color-mix(in srgb, var(--green) 22%, transparent);
@@ -3701,7 +3701,7 @@ details.local-edit summary {
 }
 .sensor-context .detail-panel .detail-icon {
   grid-column: 1;
-  grid-row: 2 / span 2;
+  grid-row: 1 / span 2;
   margin: 0;
 }
 .sensor-context .detail-panel h2,
@@ -4661,6 +4661,8 @@ details.local-edit summary {
 }
 
 .sensor-detail-title {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -4674,4 +4676,293 @@ details.local-edit summary {
 }
 .camera-inspector:not(.preview) .camera-inspector-heading {
   justify-content: flex-end;
+}
+
+/* Each room keeps its sensors together, with type and reading on the chip. */
+.matrix-dashboard .matrix-cell-stack {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.matrix-dashboard .sensor-matrix thead th:last-child {
+  text-align: left;
+  padding-left: 8px;
+}
+.matrix-dashboard .matrix-sensor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  flex-shrink: 0;
+}
+.compact .matrix-dashboard .matrix-sensor {
+  width: auto;
+}
+.matrix-sensor-alert {
+  position: absolute;
+  top: -4px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--amber);
+  font-size: 9px;
+  font-weight: 800;
+}
+.matrix-sensor.alarm .matrix-sensor-alert {
+  color: var(--red);
+}
+
+#inspector-panel-map {
+  container-type: inline-size;
+}
+.map-inspector-layout {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.map-inspector-layout.has-sensor {
+  grid-template-columns: minmax(0, 1fr) 180px;
+}
+.map-inspector-layout > .sensor-location {
+  min-width: 0;
+}
+.map-sensor-summary {
+  padding: 20px 16px;
+  border-left: 1px solid var(--line);
+  background: var(--surface-alt);
+  overflow: auto;
+  min-width: 0;
+}
+.map-sensor-symbol {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+.map-sensor-summary .healthy {
+  color: var(--green);
+  background: var(--green-bg);
+}
+.map-sensor-summary .attention {
+  color: var(--amber);
+  background: var(--amber-bg);
+}
+.map-sensor-summary .alarm {
+  color: var(--surface);
+  background: var(--red);
+}
+.map-sensor-summary .unknown {
+  color: var(--muted);
+  background: var(--surface);
+}
+.map-sensor-type,
+.map-sensor-room,
+.map-sensor-reading > span,
+.map-sensor-reading > small,
+.map-sensor-summary dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+.map-sensor-summary h3 {
+  font-size: 16px;
+  line-height: 1.3;
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.map-sensor-room {
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+.map-sensor-health {
+  display: inline-block;
+  border-radius: 5px;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.map-sensor-reading {
+  display: grid;
+  gap: 4px;
+  margin-top: 20px;
+}
+.map-sensor-reading strong {
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+}
+.map-sensor-reading strong small {
+  font-size: 15px;
+  font-weight: 400;
+}
+.map-sensor-summary dl {
+  margin: 16px 0;
+}
+.map-sensor-summary dl > div {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.map-sensor-summary dd {
+  margin: 5px 0 0;
+  font-size: 12px;
+}
+.map-sensor-summary > button {
+  width: 100%;
+  font-size: 11px;
+  justify-content: space-between;
+}
+@container (max-width: 460px) {
+  .map-inspector-layout.has-sensor {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .map-inspector-layout.has-sensor .location-stage {
+    min-height: 300px;
+  }
+  .map-sensor-summary {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    overflow: visible;
+  }
+}
+
+.location-edit-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 10px;
+  flex-shrink: 0;
+}
+.location-edit-toolbar button {
+  font-size: 11px;
+  padding: 6px 9px;
+}
+
+.location-edit-toolbar {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.location-edit-toolbar button[aria-pressed="true"] {
+  color: var(--green);
+  background: var(--green-bg);
+  border-color: var(--green);
+}
+.temperature-map-legend {
+  flex-shrink: 0;
+  padding: 0 0 10px;
+}
+.temperature-map-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.temperature-map-legend i {
+  flex: 1;
+  height: 6px;
+  border-radius: 4px;
+}
+.temperature-map-legend p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.temperature-plan .plan-wall {
+  stroke: #46505a;
+}
+.temperature-plan .plan-detail,
+.temperature-plan .plan-door,
+.temperature-plan .plan-glass,
+.temperature-plan .plan-glass-inner {
+  stroke: #7a838b;
+}
+.temperature-plan .plan-room-label {
+  fill: #26313b;
+}
+.temperature-plan .plan-temperature-label {
+  font-weight: 750;
+  fill: #15232e;
+  paint-order: stroke;
+  stroke: #ffffffcc;
+  stroke-width: 3px;
+}
+.heat-layer > img {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+.heat-layer .location-rooms polygon.is-selected {
+  fill: transparent;
+  stroke: #26313b;
+  stroke-width: 3px;
+}
+.heat-layer .location-rooms polygon:hover {
+  fill: #ffffff22;
+}
+.temperature-point-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.temperature-point-layer text {
+  fill: #15232e;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 2px;
+  font-weight: 700;
+}
+
+/* Floating map tools do not subtract height from the drawing stage. */
+#inspector-panel-map .sensor-location {
+  position: relative;
+  padding: 8px;
+}
+.location-edit-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  padding: 3px;
+  gap: 3px;
+  flex-wrap: nowrap;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #0000000d;
+}
+.location-edit-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-width: 28px;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+}
+.location-edit-toolbar .temperature-map-legend {
+  display: inline-flex;
+  gap: 5px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--muted);
+  padding-inline: 5px;
+}
+.location-edit-toolbar .temperature-map-legend i {
+  flex: none;
+  width: 48px;
+  height: 5px;
 }

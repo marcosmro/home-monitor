@@ -1,3 +1,10 @@
+import { Tooltip } from "./Tooltip";
+import { temperatureIsStale, temperatureText } from "../../shared/climate";
+import {
+  temperatureRange,
+  temperatureGradient,
+  temperatureColor,
+} from "../../shared/temperature-scale";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { suggestPlacements, type HouseMapData } from "../../shared/house-map";
 import {
@@ -19,15 +26,20 @@ export function SensorLocation({
   focusRoom,
   focusFloor,
   onSelect,
+  onEdit,
+  now,
 }: {
+  now: number;
   snap: Snapshot;
   prefs: Preferences;
   selected?: Device;
   focusRoom?: Device;
   focusFloor?: Device;
   onSelect: (id: string) => void;
+  onEdit: (planId: string) => void;
 }) {
   const { t } = useLanguage();
+  const [heat, setHeat] = useState(false);
   const [data, setData] = useState<HouseMapData>();
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
@@ -123,6 +135,27 @@ export function SensorLocation({
     stageSize.width,
     (stageSize.height * bounds[2]) / bounds[3],
   );
+  const scale = temperatureRange(prefs.temperatureRange);
+  const readings = snap.devices.filter(
+    (d) =>
+      places[d.id]?.planId === plan?.id &&
+      Number.isFinite(d.temperature) &&
+      !d.stale &&
+      snap.online === true &&
+      !temperatureIsStale(d, snap, now),
+  );
+  const grouped = new Map<string, number[]>();
+  for (const d of readings) {
+    const roomId = places[d.id]?.roomId;
+    if (roomId)
+      grouped.set(roomId, [...(grouped.get(roomId) || []), d.temperature!]);
+  }
+  const roomTemperatures = new Map(
+    [...grouped].map(([id, values]) => [
+      id,
+      values.reduce((sum, value) => sum + value, 0) / values.length,
+    ]),
+  );
   return (
     <section className="sensor-location" aria-label={t("Sensor location")}>
       {error && (
@@ -145,9 +178,43 @@ export function SensorLocation({
       )}
       {plan && (
         <>
+          <div className="location-edit-toolbar">
+            {heat && (
+              <Tooltip
+                label={`${t(plan.drawing ? "Room averages · fresh readings only" : "Sensor readings · fresh readings only")} · ${readings.length} ${t("sensors")}. ${t(readings.length ? "Gray areas have no fresh readings." : "No fresh temperature readings on this floor.")}`}
+              >
+                <button
+                  className="temperature-map-legend"
+                  aria-label={t("Temperature scale")}
+                >
+                  <span>{scale.min}°C</span>
+                  <i style={{ background: temperatureGradient }} />
+                  <span>{scale.max}°C</span>
+                  <Icon name="info" size={12} />
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip label={t("Temperature layer")}>
+              <button
+                aria-label={t("Temperature layer")}
+                aria-pressed={heat}
+                onClick={() => setHeat(!heat)}
+              >
+                <Icon name="temperature" size={16} />
+              </button>
+            </Tooltip>
+            <Tooltip label={t("Edit sensor locations")}>
+              <button
+                aria-label={t("Edit sensor locations")}
+                onClick={() => onEdit(plan.id)}
+              >
+                <Icon name="edit" size={16} />
+              </button>
+            </Tooltip>
+          </div>
           <div className="location-stage" ref={stageRef}>
             <div
-              className="location-plan"
+              className={`location-plan ${heat ? "heat-layer" : ""}`}
               data-plan-id={plan.id}
               aria-label={plan.label}
               style={{
@@ -156,11 +223,49 @@ export function SensorLocation({
               }}
             >
               {plan.drawing ? (
-                <PlanDrawing plan={plan} openings={false} />
+                <PlanDrawing
+                  plan={plan}
+                  openings={false}
+                  temperatures={heat ? roomTemperatures : undefined}
+                  temperatureScale={scale}
+                />
               ) : image ? (
                 <img src={image} alt={plan.label} />
               ) : (
                 <p>{t("Loading plan…")}</p>
+              )}
+              {heat && !plan.drawing && (
+                <svg
+                  className="temperature-point-layer"
+                  viewBox={`0 0 ${plan.width} ${plan.height}`}
+                  aria-label={t("Temperature layer")}
+                >
+                  {readings.map((d) => {
+                    const p = places[d.id]!;
+                    return (
+                      <g key={d.id}>
+                        <circle
+                          cx={p.x * plan.width}
+                          cy={p.y * plan.height}
+                          r={Math.min(plan.width, plan.height) * 0.07}
+                          fill={temperatureColor(d.temperature, scale)}
+                          fillOpacity={0.45}
+                        />
+                        <text
+                          x={p.x * plan.width}
+                          y={
+                            p.y * plan.height +
+                            Math.min(plan.width, plan.height) * 0.045
+                          }
+                          textAnchor="middle"
+                          fontSize={Math.min(plan.width, plan.height) * 0.025}
+                        >
+                          {temperatureText(d.temperature)}C
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
               )}
               {plan.drawing && (
                 <svg className="location-rooms" viewBox={bounds.join(" ")}>

@@ -88,6 +88,11 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
       </>
     ),
     moon: <path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10Z" />,
+    edit: (
+      <>
+        <path d="m15 4 5 5M4 20l5-1L20 8a2.1 2.1 0 0 0-5-5L4 14l-1 7" />
+      </>
+    ),
     chevron: <path d="m9 5 7 7-7 7" />,
     close: <path d="m6 6 12 12M6 18 18 6" />,
     check: <path d="m5 12 4 4L19 6" />,

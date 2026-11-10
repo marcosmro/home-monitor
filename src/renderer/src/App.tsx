@@ -1,3 +1,4 @@
+import { MapSensorSummary } from "./MapSensorSummary";
 import { ActivityActionIcon, ActivityActor } from "./ActivityIdentity";
 import { CameraInspector, useCameraLibrary } from "./CameraInspector";
 import { isCamera } from "../../shared/cameras";
@@ -117,6 +118,7 @@ export default function App() {
   const [view, setView] = useState<
     "overview" | "activity" | "settings" | "cameras" | "map"
   >("overview");
+  const [mapEditPlan, setMapEditPlan] = useState<string>();
   const [filter, setFilter] = useState("all");
   const [inspectorTab, setInspectorTab] = useState<
     "details" | "map" | "activity" | "photos"
@@ -341,8 +343,8 @@ export default function App() {
   const houseAverage = averageTemperature(snap, snap.devices, now);
   const detail = selectedDevice;
   const inspectorTabs = [
+    ["map", "layers", "Sensor"],
     ["details", "info", "Details"],
-    ["map", "layers", "Floor plan"],
     ...(selectedCamera ? [["photos", "camera", "Photos"]] : []),
     ["activity", "clock", "Activity"],
   ] as Array<[typeof inspectorTab, string, string]>;
@@ -715,6 +717,17 @@ export default function App() {
                   snap={snap}
                   prefs={prefs}
                   initialSelectedId={selected}
+                  initialPlanId={mapEditPlan}
+                  initialEdit={!!mapEditPlan}
+                  onFinishEditing={
+                    mapEditPlan
+                      ? () => {
+                          setMapEditPlan(undefined);
+                          setInspectorTab("map");
+                          setView("overview");
+                        }
+                      : undefined
+                  }
                   onInspect={(id) => {
                     setSelected(id);
                     setInspectorTab("details");
@@ -781,11 +794,9 @@ export default function App() {
                       selected={selected}
                       onSelect={(id) => {
                         setSelected(id);
-                        setInspectorTab(
-                          snap.devices.some((d) => d.id === id && isCamera(d))
-                            ? "map"
-                            : "details",
-                        );
+                        setFloorFocus(undefined);
+                        setRoomFocus(undefined);
+                        setInspectorTab("map");
                         revealInspector();
                       }}
                       activeFloor={
@@ -1046,14 +1057,32 @@ export default function App() {
                           aria-labelledby="inspector-tab-map"
                           hidden={inspectorTab !== "map"}
                         >
-                          <SensorLocation
-                            snap={snap}
-                            prefs={prefs}
-                            selected={detail}
-                            focusRoom={roomFocus}
-                            focusFloor={floorFocus}
-                            onSelect={setSelected}
-                          />
+                          <div
+                            className={`map-inspector-layout ${detail ? "has-sensor" : ""}`}
+                          >
+                            <SensorLocation
+                              now={now}
+                              snap={snap}
+                              prefs={prefs}
+                              selected={detail}
+                              focusRoom={roomFocus}
+                              focusFloor={floorFocus}
+                              onEdit={(planId) => {
+                                setMapEditPlan(planId);
+                                setView("map");
+                              }}
+                              onSelect={setSelected}
+                            />
+                            {detail && (
+                              <MapSensorSummary
+                                device={detail}
+                                prefs={prefs}
+                                snap={snap}
+                                now={now}
+                                onDetails={() => setInspectorTab("details")}
+                              />
+                            )}
+                          </div>
                         </div>
                         {selectedCamera && (
                           <div

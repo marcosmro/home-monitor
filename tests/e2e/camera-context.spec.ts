@@ -23,7 +23,7 @@ test("camera selection connects map, details, saved photos, controls and full ma
     .getByRole("button", { name: "Show on floor plan", exact: true })
     .click();
   await expect(
-    page.getByRole("tab", { name: "Floor plan", exact: true }),
+    page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".location-pin.is-selected")).toHaveAttribute(
     "aria-label",
@@ -49,7 +49,7 @@ test("camera selection connects map, details, saved photos, controls and full ma
   ).toBeDisabled();
   await page.getByRole("button", { name: "Older photo", exact: true }).click();
   await expect(page.locator(".camera-photo-navigation")).toContainText("2 / 2");
-  await page.getByRole("tab", { name: "Floor plan", exact: true }).click();
+  await page.getByRole("tab", { name: "Sensor", exact: true }).click();
   await page.getByRole("tab", { name: "Photos", exact: true }).click();
   await expect(page.locator(".camera-photo-navigation")).toContainText("2 / 2");
   await page.evaluate(() => window.scrollTo(0, 0));

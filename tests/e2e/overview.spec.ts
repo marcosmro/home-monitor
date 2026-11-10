@@ -37,6 +37,7 @@ test("local Spanish alias persists in the matrix with original preserved", async
   page,
 }) => {
   await page.locator(".matrix-sensor").first().click();
+  await page.getByRole("button", { name: "View details", exact: true }).click();
   await page.getByText("Local names & groups", { exact: true }).first().click();
   await page
     .getByRole("textbox", { name: "Nombre en español" })
@@ -50,6 +51,7 @@ test("local Spanish alias persists in the matrix with original preserved", async
   });
   await expect(renamed).toHaveCount(1);
   await renamed.click();
+  await page.getByRole("button", { name: "View details", exact: true }).click();
   await expect(
     page.getByRole("complementary", { name: "Sensor details" }),
   ).toContainText("Front door");

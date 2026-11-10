@@ -1,17 +1,26 @@
+import {
+  temperatureColor,
+  type TemperatureRange,
+} from "../../shared/temperature-scale";
+import { temperatureText } from "../../shared/climate";
 import type { MapPlan } from "../../shared/house-map";
 
 /** Local vector geometry; never executes markup from an imported catalog. */
 export function PlanDrawing({
   plan,
   openings = true,
+  temperatures,
+  temperatureScale,
 }: {
   plan: MapPlan;
   openings?: boolean;
+  temperatures?: Map<string, number>;
+  temperatureScale?: TemperatureRange;
 }) {
   const d = plan.drawing!;
   return (
     <svg
-      className="map-vector"
+      className={`map-vector ${temperatures ? "temperature-plan" : ""}`}
       viewBox={d.bounds.join(" ")}
       role="img"
       aria-label={`${plan.label}, redrawn floor plan with doors and windows`}
@@ -28,6 +37,18 @@ export function PlanDrawing({
           <polygon
             points={a.points.map((p) => p.join(",")).join(" ")}
             className={`plan-area ${a.kind || ""}`}
+            style={
+              temperatures && temperatureScale
+                ? {
+                    fill:
+                      temperatureColor(
+                        temperatures.get(a.id),
+                        temperatureScale,
+                      ) || "#edf0f2",
+                    fillOpacity: temperatures.has(a.id) ? 0.48 : 1,
+                  }
+                : undefined
+            }
           />
         </g>
       ))}
@@ -100,7 +121,12 @@ export function PlanDrawing({
               {line}
             </tspan>
           ))}
-          {a.area && (
+          {temperatures?.has(a.id) && (
+            <tspan className="plan-temperature-label" x={a.labelAt[0]} dy="20">
+              {temperatureText(temperatures.get(a.id))}C
+            </tspan>
+          )}
+          {!temperatures && a.area && (
             <tspan x={a.labelAt[0]} dy="18" className="plan-area-label">
               {a.area}
             </tspan>
