@@ -289,6 +289,7 @@ const descriptions: Record<string, string> = {
   internetrestored: "Internet connection restored",
   mains: "Mains power lost",
   mainsrestored: "Mains power restored",
+  mainsrestore: "Mains power restored",
   batterystatusrestored: "Sensor battery restored",
 };
 export function logs(raw: unknown, devices: Device[] = []): Event[] {

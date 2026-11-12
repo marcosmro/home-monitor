@@ -3,7 +3,7 @@ import { demoSnapshot } from "../../src/shared/demo";
 import { demoMap } from "../../src/shared/demo-map";
 import { defaults } from "../../src/shared/model";
 
-test("camera selection connects map, details, saved photos, controls and full map", async ({
+test("camera selection connects map, details, saved photos and controls", async ({
   page,
 }) => {
   await page.goto("/");
@@ -70,11 +70,11 @@ test("camera selection connects map, details, saved photos, controls and full ma
     .locator(".camera-card.is-selected")
     .getByRole("button", { name: "Show on floor plan", exact: true })
     .click();
-  await page.getByRole("button", { name: "House map", exact: true }).click();
-  await expect(page.locator(".map-pin.selected")).toHaveCount(1);
-  await page
-    .getByRole("button", { name: "Open sensor workspace", exact: true })
-    .click();
+  await expect(
+    page.getByRole("tab", { name: "Sensor", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".location-pin.is-selected")).toHaveCount(1);
+  await page.getByRole("button", { name: "View details", exact: true }).click();
   await expect(
     page.getByRole("tab", { name: "Details", exact: true }),
   ).toHaveAttribute("aria-selected", "true");

@@ -43,7 +43,8 @@ export function demoMap(): MapProject {
         return {
           id: r.id,
           label: r.label,
-          labelAt: [x, y + 55],
+          // Above the suggested sensor positions, which cluster at the room centre.
+          labelAt: [x, y - 60],
           points: [
             [x - 160, y - 110],
             [x + 160, y - 110],

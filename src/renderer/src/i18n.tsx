@@ -44,3 +44,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   );
 }
 export const useLanguage = () => useContext(LanguageContext);
+/** "1 sensor", "9 sensors": the one way a sensor count is written. */
+export const sensorCount = (
+  n: number,
+  t: (text: string, ...values: (string | number)[]) => string,
+) => `${n} ${t(n === 1 ? "sensor" : "sensors")}`;

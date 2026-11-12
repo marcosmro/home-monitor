@@ -1,12 +1,18 @@
 import { smartPlugs } from "../shared/smart-plugs";
 import { keyTagPeople } from "../shared/activity-identity";
 import { isCamera } from "../shared/cameras";
-import { SectorApi, ApiError, CaptureOutcomeUnknown } from "./api";
+import {
+  SectorApi,
+  ApiError,
+  CaptureOutcomeUnknown,
+  EmptyCapture,
+} from "./api";
 import type { Snapshot, Action, Device } from "../shared/model";
 import { demoSnapshot } from "../shared/demo";
 import { state, mergeDevices, logs, panelList } from "../shared/normalize";
 import { InventoryReader } from "./inventory";
 import { CommandGate } from "../shared/commands";
+import { OutageLog } from "../shared/outages";
 export class Monitor {
   snap = demoSnapshot();
   private contacts: Device[] = [];
@@ -21,6 +27,7 @@ export class Monitor {
   private extras: Record<string, Device[]> = {};
   private lastAttempt: Record<string, number> = {};
   panels: Array<{ id: string; name: string }> = [];
+  readonly outageLog = new OutageLog();
   constructor(
     private api: SectorApi,
     private emit: (s: Snapshot) => void,
@@ -226,6 +233,7 @@ export class Monitor {
           (previousOrder.get(a.id) ?? Infinity) -
           (previousOrder.get(b.id) ?? Infinity),
       );
+      this.snap.inferredOutages = this.outageLog.update(this.snap);
       return this.publish();
     } finally {
       this.busy = false;
@@ -316,17 +324,18 @@ export class Monitor {
     if (d.cameraRoute === "legacy" && !d.legacyCameraId)
       throw new Error("Legacy camera has no documented capture identifier.");
     // This GET triggers a physical action: never retry after 401 or a timeout.
+    // The queue repeats it only after a complete, definite refusal.
     try {
       const raw = await this.api.request(
         d.cameraRoute === "legacy" ? legacy : modern,
         undefined,
         true,
         false,
-        120000,
+        180000,
       );
       const value = raw?.image ?? raw?.Image;
       if (typeof value !== "string" || !value)
-        throw new Error("Camera returned no photo. Nothing was saved.");
+        throw new EmptyCapture("Camera returned no photo. Nothing was saved.");
       return value;
     } catch (error) {
       if (error instanceof ApiError && error.status === 405) {
@@ -519,6 +528,44 @@ export class Monitor {
     }
     if (name === "triggered") this.snap.devices[0].alarm = true;
     if (name === "offline") this.snap.online = false;
+    if (name === "power-out" || name === "power-restored") {
+      const ago = (minutes: number) =>
+        new Date(Date.now() - minutes * 60000).toISOString();
+      this.snap.events.unshift({
+        id: "power-lost",
+        type: "mains",
+        description: "Mains power lost",
+        time: ago(95),
+      });
+      if (name === "power-restored")
+        this.snap.events.unshift({
+          id: "power-restored",
+          type: "mains_restored",
+          description: "Mains power restored",
+          time: ago(8),
+        });
+      this.snap.totalEvents = this.snap.events.length;
+    }
+    if (name === "possible-cut" || name === "possible-cut-ended") {
+      const ago = (minutes: number) =>
+        new Date(Date.now() - minutes * 60000).toISOString();
+      this.snap.inferredOutages = [
+        {
+          startedAt: ago(50),
+          lastOkAt: ago(65),
+          lastDownAt: ago(5),
+          endedAt: name === "possible-cut-ended" ? ago(5) : undefined,
+          signals: ["plugs", "internet"],
+        },
+        {
+          startedAt: ago(4000),
+          lastOkAt: ago(4003),
+          lastDownAt: ago(3982),
+          endedAt: ago(3979),
+          signals: ["panel"],
+        },
+      ];
+    }
     if (name === "unknown-command") {
       this.gate.begin("disarm", 0);
       this.gate.phase = "unknown";

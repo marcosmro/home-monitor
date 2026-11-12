@@ -48,14 +48,14 @@ try {
     requests: 0,
     demo: true,
   });
-  await page.getByRole("button", { name: "House map", exact: true }).click();
-  await page.locator(".map-pin.confirmed").waitFor();
+  // The overview's side panel opens on the first plan, where the placement was saved.
+  await page.locator(".location-pin.confirmed").waitFor();
   await app.close();
   app = await launch();
   page = await app.firstWindow();
   await page.locator(".matrix-sensor").first().waitFor();
-  await page.getByRole("button", { name: "House map", exact: true }).click();
-  await page.locator(".map-pin.confirmed").waitFor();
+  // The overview's side panel opens on the first plan, where the placement was saved.
+  await page.locator(".location-pin.confirmed").waitFor();
   assert.equal(
     await page.evaluate(async () => (await window.home.snapshot()).requests),
     0,

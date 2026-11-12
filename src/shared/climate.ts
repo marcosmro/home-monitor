@@ -8,8 +8,11 @@ export const roomKey = (d: Pick<Device, "floorId" | "roomId">) =>
   JSON.stringify([d.floorId, d.roomId]);
 export function roomGroupKey(d: Device, p: Preferences) {
   const a = p.aliases[d.id];
-  return a?.floor || a?.room
-    ? JSON.stringify(["local", a.floor || d.floorId, a.room || d.roomId])
+  if (a?.floor || a?.room)
+    return JSON.stringify(["local", a.floor || d.floorId, a.room || d.roomId]);
+  // An assigned inventory room shares that room's row.
+  return a?.placeFloorId && a.placeRoomId
+    ? roomKey({ floorId: a.placeFloorId, roomId: a.placeRoomId })
     : roomKey(d);
 }
 export function finiteTemperature(value: unknown): number | undefined {

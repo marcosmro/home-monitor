@@ -13,6 +13,8 @@ import {
   deviceState,
   deviceHealth,
   displayDevice,
+  deviceIsStale,
+  deviceTone,
   type Device,
   type Preferences,
 } from "../../shared/model";
@@ -24,13 +26,22 @@ export function HouseModel3D({
   prefs,
   onSelect,
   online,
+  armed,
+  compact = false,
+  roomId,
 }: {
+  /** Selected room: its floor is tinted light green. */
+  roomId?: string;
   plan: MapPlan;
   devices: Device[];
   places: Record<string, MapPlacement | null>;
   prefs: Preferences;
   onSelect: (d: Device) => void;
   online?: boolean;
+  /** Fully armed: an open contact then shows as red rather than orange. */
+  armed?: boolean;
+  /** Side-panel layout: the geometry notes and cross-checks fold away. */
+  compact?: boolean;
 }) {
   const { t } = useLanguage();
   const exterior = plan.model?.scene === "exterior";
@@ -116,6 +127,72 @@ export function HouseModel3D({
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  const notes = (
+    <>
+      <div className="model-notes">
+        <strong>{t("Estimated geometry")}</strong>
+        <p>
+          {exterior ? (
+            t(
+              "Outdoor layout, terrain levels, roof heights and boundaries are approximate. This separate exterior study does not establish a cadastral boundary or align the interior sensor plans.",
+            )
+          ) : (
+            <>
+              {t(
+                "Heights, floor offsets, wall thickness and opening heights are provisional. Plans are viewed separately; alignment between drawings has not been surveyed. This is an architectural model, not a photogrammetric scan.",
+              )}
+            </>
+          )}
+        </p>
+        {plan.model?.notes.map((n, i) => (
+          <p key={i}>{n}</p>
+        ))}
+      </div>
+      {!!plan.model?.review.length && (
+        <details className="model-review" open>
+          <summary>{t("Video / plan cross-check")}</summary>
+          {plan.model.review.map((r, i) => (
+            <article key={i}>
+              <span className={`review-status ${r.status}`}>
+                {r.status === "supported"
+                  ? t("Supported by video")
+                  : r.status === "review"
+                    ? t("Needs review")
+                    : t("Not established")}
+              </span>
+              <strong>{r.title}</strong>
+              <span>
+                {Math.floor(r.seconds / 60)}:
+                {String(r.seconds % 60).padStart(2, "0")}
+              </span>
+              <p>{r.finding}</p>
+            </article>
+          ))}
+        </details>
+      )}
+      {!!plan.model?.photoReview?.length && (
+        <details className="model-review" open>
+          <summary>{t("Photo / structure cross-check")}</summary>
+          {plan.model.photoReview.map((r, i) => (
+            <article key={i}>
+              <span className={`review-status ${r.status}`}>
+                {r.status === "supported"
+                  ? t("Photo-supported")
+                  : r.status === "review"
+                    ? t("Estimated / review")
+                    : t("Not established")}
+              </span>
+              <strong>{r.title}</strong>
+              <p>{r.finding}</p>
+              <p className="model-source">
+                {t("Sources:")} {r.sources.join(", ")}
+              </p>
+            </article>
+          ))}
+        </details>
+      )}
+    </>
+  );
   return (
     <div className="house-model">
       <div className="model-controls">
@@ -211,9 +288,12 @@ export function HouseModel3D({
               key={i}
               data-kind={face.kind}
               points={face.vertices.map((v) => screen(v).join(",")).join(" ")}
-              fill={face.color}
+              data-selected={
+                roomId && face.areaId === roomId ? "true" : undefined
+              }
+              fill={roomId && face.areaId === roomId ? "#bfe3cb" : face.color}
               fillOpacity={face.kind === "glazing" ? 0.6 : 1}
-              stroke={face.color}
+              stroke={roomId && face.areaId === roomId ? "#bfe3cb" : face.color}
               strokeOpacity={face.kind === "glazing" ? 0.6 : 1}
               strokeWidth="0.6"
             />
@@ -245,23 +325,14 @@ export function HouseModel3D({
                     z + 0.1,
                     py / metres + Math.sin(heading) * 1.3,
                   ]);
-            const color = d.alarm
-              ? "#b43b3b"
-              : d.stale ||
-                  d.offline ||
-                  online !== true ||
-                  !Number.isFinite(Date.parse(d.fetchedAt)) ||
-                  Date.now() - Date.parse(d.fetchedAt) > 1200000
-                ? "#7b8581"
-                : d.closed === false
-                  ? "#a76b16"
-                  : d.closed === true && deviceHealth(d) === "OK"
-                    ? "#30745c"
-                    : "#7b8581";
+            const tone = deviceTone(d, {
+              stale: deviceIsStale(d, online),
+              armed,
+            });
             return (
               <g
                 key={d.id}
-                className="model-sensor"
+                className={`model-sensor ${tone}`}
                 role="button"
                 tabIndex={0}
                 aria-label={`${displayDevice(d, prefs)}, ${t(deviceState(d))}`}
@@ -280,15 +351,14 @@ export function HouseModel3D({
                 {end && (
                   <path
                     d={`M${x},${y} L${end.join(",")}`}
-                    stroke="#397996"
+                    className="model-sensor-heading"
                     strokeWidth="3"
                   />
                 )}
                 <circle
                   cx={x}
                   cy={y}
-                  r="7"
-                  fill={color}
+                  r={tone === "healthy" || tone === "neutral" ? 6 : 8}
                   stroke="white"
                   strokeWidth="2"
                   strokeDasharray={p.confirmed ? undefined : "3 2"}
@@ -331,67 +401,13 @@ export function HouseModel3D({
           />
         </label>
       </div>
-      <div className="model-notes">
-        <strong>{t("Estimated geometry")}</strong>
-        <p>
-          {exterior ? (
-            t(
-              "Outdoor layout, terrain levels, roof heights and boundaries are approximate. This separate exterior study does not establish a cadastral boundary or align the interior sensor plans.",
-            )
-          ) : (
-            <>
-              {t(
-                "Heights, floor offsets, wall thickness and opening heights are provisional. Plans are viewed separately; alignment between drawings has not been surveyed. This is an architectural model, not a photogrammetric scan.",
-              )}
-            </>
-          )}
-        </p>
-        {plan.model?.notes.map((n, i) => (
-          <p key={i}>{n}</p>
-        ))}
-      </div>
-      {!!plan.model?.review.length && (
-        <details className="model-review" open>
-          <summary>{t("Video / plan cross-check")}</summary>
-          {plan.model.review.map((r, i) => (
-            <article key={i}>
-              <span className={`review-status ${r.status}`}>
-                {r.status === "supported"
-                  ? t("Supported by video")
-                  : r.status === "review"
-                    ? t("Needs review")
-                    : t("Not established")}
-              </span>
-              <strong>{r.title}</strong>
-              <span>
-                {Math.floor(r.seconds / 60)}:
-                {String(r.seconds % 60).padStart(2, "0")}
-              </span>
-              <p>{r.finding}</p>
-            </article>
-          ))}
+      {compact ? (
+        <details className="model-about">
+          <summary>{t("About this model")}</summary>
+          {notes}
         </details>
-      )}
-      {!!plan.model?.photoReview?.length && (
-        <details className="model-review" open>
-          <summary>{t("Photo / structure cross-check")}</summary>
-          {plan.model.photoReview.map((r, i) => (
-            <article key={i}>
-              <span className={`review-status ${r.status}`}>
-                {r.status === "supported"
-                  ? t("Photo-supported")
-                  : r.status === "review"
-                    ? t("Estimated / review")
-                    : t("Not established")}
-              </span>
-              <strong>{r.title}</strong>
-              <p>{r.finding}</p>
-              <p className="model-source">
-                {t("Sources:")} {r.sources.join(", ")}
-              </p>
-            </article>
-          ))}
-        </details>
+      ) : (
+        notes
       )}
     </div>
   );

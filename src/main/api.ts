@@ -1,4 +1,6 @@
 export class CaptureOutcomeUnknown extends Error {}
+/** The camera answered, but without a photo: nothing was taken or saved. */
+export class EmptyCapture extends Error {}
 const BASE = "https://mypagesapi.sectoralarm.net";
 export class ApiError extends Error {
   constructor(

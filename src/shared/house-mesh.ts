@@ -4,6 +4,8 @@ export interface MeshFace {
   vertices: Vec3[];
   color: string;
   kind: string;
+  /** Plan area a floor face belongs to, so the view can highlight a room. */
+  areaId?: string;
 }
 export interface HouseMesh {
   faces: MeshFace[];
@@ -201,13 +203,10 @@ export function buildHouseMesh(
     const z = plan.model?.areaLevels?.[area.id] || 0;
     face(
       area.points.map((p) => convert(p, z)),
-      area.kind === "outside"
-        ? "#b5c6a4"
-        : area.kind === "service"
-          ? "#cbdcda"
-          : "#e4d8c0",
+      "#f6f7f5",
       "floor",
     );
+    mesh.faces[mesh.faces.length - 1].areaId = area.id;
     for (let i = 0; i < area.points.length; i++) {
       const a = area.points[i],
         b = area.points[(i + 1) % area.points.length];

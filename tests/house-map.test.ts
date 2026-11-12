@@ -1,7 +1,13 @@
 import { it, expect } from "vitest";
 import { demoSnapshot } from "../src/shared/demo";
 import { demoMap } from "../src/shared/demo-map";
-import { suggestPlacements, validatePlacement } from "../src/shared/house-map";
+import {
+  bestGrid,
+  floorPlans,
+  suggestPlacements,
+  validatePlacement,
+} from "../src/shared/house-map";
+import { defaults } from "../src/shared/model";
 import { HouseMapStore } from "../src/main/house-map";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -99,4 +105,52 @@ it("uses photo hints only for the matching camera and preserves editable directi
   );
   const other = { ...camera, type: "MagneticContact" };
   expect(suggestPlacements([other], project)[other.id].heading).toBeUndefined();
+});
+it("names, orders and counts plans like the sensor list, whatever the plan files are called", () => {
+  const ds = demoSnapshot().devices,
+    p = demoMap();
+  p.plans.forEach((plan) => (plan.label = `Plan file ${plan.id}`));
+  p.plans.push({ ...p.plans[0], id: "spare", label: "Spare plan" });
+  // The first room of the basement is drawn on the ground-floor plan.
+  p.rooms.find((r) => r.id === "f2r0")!.planId = "f0";
+  const prefs = {
+    ...defaults,
+    floorOrder: ["Sótano", "Primera planta", "Planta baja"],
+  };
+  const plans = floorPlans(p, ds, suggestPlacements(ds, p), prefs);
+  expect(plans.map((x) => [x.plan.id, x.title, x.devices.length])).toEqual([
+    ["f2", "Sótano", 16],
+    ["f1", "Primera planta", 16],
+    ["f0", "Planta baja", 16],
+    ["spare", "Spare plan", 0],
+  ]);
+  // Two floor sections on one plan: the plan carries both names.
+  const merged = floorPlans(
+    p,
+    ds,
+    Object.fromEntries(
+      ds.map((d) => [
+        d.id,
+        { planId: "f0", x: 0.5, y: 0.5, confirmed: true, reason: "" },
+      ]),
+    ),
+    prefs,
+  );
+  expect(merged[0].title).toBe("Sótano · Primera planta · Planta baja");
+  expect(merged[0].devices).toHaveLength(48);
+});
+it("arranges plan cards to draw them largest in the space there is", () => {
+  const portrait: [number, number][] = Array(4).fill([600, 1000]);
+  // A tall panel: 2 by 2 instead of a thin row over empty space.
+  expect(bestGrid(portrait, { width: 640, height: 900 })).toEqual({
+    cols: 2,
+    rows: 2,
+  });
+  // A wide, short one: a single row.
+  expect(bestGrid(portrait, { width: 1200, height: 400 })).toEqual({
+    cols: 4,
+    rows: 1,
+  });
+  // Too little room for any arrangement: the cards scroll instead.
+  expect(bestGrid(portrait, { width: 300, height: 120 })).toBeUndefined();
 });

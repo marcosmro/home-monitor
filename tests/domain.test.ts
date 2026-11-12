@@ -89,6 +89,39 @@ describe("sensor normalization", () => {
       displayDevice({ ...d, spanish: undefined }, { ...defaults, aliases: {} }),
     ).toBe(d.original);
   });
+  it("shows a room as its own floor through a local room floor group", () => {
+    const [d, other] = demoSnapshot().devices;
+    const key = JSON.stringify([d.floorId, d.roomId]);
+    const p = { ...defaults, roomFloors: { [key]: "Garaje" } };
+    expect(location(d, p).floor).toBe("Garaje");
+    expect(location(d, p).room).toBe(location(d, defaults).room);
+    // A per-sensor floor group still wins; other rooms keep their floor.
+    expect(
+      location(d, { ...p, aliases: { [d.id]: { floor: "Anexo" } } }).floor,
+    ).toBe("Anexo");
+    if (JSON.stringify([other.floorId, other.roomId]) !== key)
+      expect(location(other, p).floor).toBe(location(other, defaults).floor);
+  });
+  it("gives an interior garage its own section unless a local group overrides it", () => {
+    const d = {
+      ...demoSnapshot().devices[0],
+      floor: "Basement",
+      floorEs: "Sótano",
+      room: "Indoor garage",
+      roomEs: "Garaje interior",
+    };
+    expect(location(d, defaults)).toEqual({
+      floor: "Garaje interior",
+      room: "Garaje interior",
+    });
+    expect(location(d, { ...defaults, names: "original" }).floor).toBe(
+      "Indoor garage",
+    );
+    const key = JSON.stringify([d.floorId, d.roomId]);
+    expect(
+      location(d, { ...defaults, roomFloors: { [key]: "Sótano" } }).floor,
+    ).toBe("Sótano");
+  });
   it("rejects an invalid plan instead of converting errors into an empty healthy house", () => {
     expect(() => plan({}, "contacts", "now")).toThrow();
   });

@@ -893,6 +893,15 @@ label:not(.search) {
 .local-edit label {
   font-size: 10px;
 }
+.room-floor-group {
+  max-width: 260px;
+  margin: 18px auto 0;
+  text-align: left;
+  font-size: 10px;
+}
+.room-floor-group small {
+  line-height: 1.5;
+}
 label.checkbox {
   flex-direction: row;
   align-items: center;
@@ -2016,17 +2025,12 @@ dialog .banner {
     -apple-system,
     sans-serif;
 }
+/* Every room shares one fill; only the selected room carries colour. */
 .plan-area {
-  fill: #f3f2eb;
-}
-.plan-area.service {
-  fill: #e9f0ee;
-}
-.plan-area.outside {
-  fill: #e5ebe1;
+  fill: #fff;
 }
 .plan-area.void {
-  fill: #f4f6f2;
+  fill: #fff;
   stroke: #bdc9c0;
   stroke-width: 2;
   stroke-dasharray: 8 7;
@@ -2044,15 +2048,15 @@ dialog .banner {
 }
 .plan-door {
   fill: none;
-  stroke: #9b744a;
+  stroke: #8b9490;
   stroke-width: 1.8;
 }
 .plan-glass {
-  stroke: #538fac;
+  stroke: #8b9490;
   stroke-width: 6;
 }
 .plan-glass-inner {
-  stroke: #e8f5fb;
+  stroke: #fbfcfa;
   stroke-width: 2;
 }
 .plan-room-label {
@@ -2067,7 +2071,7 @@ dialog .banner {
   fill: #74837a;
 }
 .plan-opening-label {
-  fill: #3e7591;
+  fill: #5f6a65;
   font-size: 11px;
   text-anchor: middle;
   paint-order: stroke;
@@ -2075,21 +2079,21 @@ dialog .banner {
   stroke-width: 4;
 }
 .plan-opening.door .plan-opening-label {
-  fill: #906943;
+  fill: #5f6a65;
 }
 .camera-direction {
-  fill: #438db31c;
-  stroke: #438db38c;
+  fill: #46504c12;
+  stroke: #46504c70;
   stroke-width: 1;
   stroke-dasharray: 4 3;
 }
 .camera-direction.selected {
-  fill: #438db33b;
-  stroke: #438db3;
+  fill: #46504c2b;
+  stroke: #46504c;
 }
 .camera-direction-arrow {
   fill: none;
-  stroke: #438db3;
+  stroke: #46504c;
   stroke-width: 2;
 }
 .map-toolbar {
@@ -2182,7 +2186,7 @@ dialog .banner {
 .model-room-label {
   font-size: 12px;
   text-anchor: middle;
-  fill: #314b3d;
+  fill: #46504c;
   paint-order: stroke;
   stroke: #f6f8f2;
   stroke-width: 3px;
@@ -2197,7 +2201,7 @@ dialog .banner {
   outline: none;
 }
 .model-sensor:focus circle {
-  stroke: #3579be;
+  stroke: #33403b;
   stroke-width: 4px;
 }
 .model-notes {
@@ -2304,7 +2308,8 @@ dialog .banner {
   --bg: #f3f6f8;
   --surface-alt: #f2f5f7;
   --ink: #243c49;
-  --muted: #627681;
+  /* 4.7:1 or better on every light surface (WCAG AA for small text). */
+  --muted: #586c77;
   --line: #dce5ea;
   --green: #217560;
   --green-bg: #e5f3ec;
@@ -3776,14 +3781,14 @@ details.local-edit summary {
 }
 .location-rooms polygon:hover,
 .location-rooms polygon:focus-visible {
-  fill: #33735915;
-  stroke: #337359;
+  fill: #2f8f5b14;
+  stroke: #7fb894;
   stroke-width: 2px;
   outline: none;
 }
 .location-rooms polygon.is-selected {
-  fill: #33735922;
-  stroke: #337359;
+  fill: #2f8f5b38;
+  stroke: #2f8f5b;
   stroke-width: 3px;
 }
 .location-pin {
@@ -3793,17 +3798,18 @@ details.local-edit summary {
   height: 22px;
   padding: 0;
   border-radius: 5px;
-  border: 1px solid #337359;
+  border: 1px solid #aab2ad;
   background: #fff;
-  color: #337359;
+  color: #56615c;
 }
 .location-pin.suggested {
   border-style: dashed;
 }
 .location-pin.is-selected {
-  background: #337359;
+  background: #33403b;
+  border-color: #33403b;
   color: white;
-  outline: 2px solid #337359;
+  outline: 2px solid #33403b;
   outline-offset: 2px;
   z-index: 1;
 }
@@ -4965,4 +4971,1103 @@ details.local-edit summary {
   flex: none;
   width: 48px;
   height: 5px;
+}
+
+/* ---------------------------------------------------------------------------
+   Responsive and consistency pass. Later than every layout layer above, so
+   these are the effective rules for the cases they name.
+   ------------------------------------------------------------------------- */
+
+/* The dashboard and the activity strip share the page gutters with the alarm
+   strip and the filters at every width, instead of stopping at 1320px. */
+.sensor-layout.matrix-dashboard,
+.activity-strip {
+  max-width: none;
+}
+@media (min-width: 1600px) {
+  .sensor-layout.matrix-dashboard {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+}
+
+/* Each legend swatch stays with its label when the legend wraps. */
+.matrix-key {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.matrix-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.matrix-key > span > i:is(.warm, .danger, .neutral) {
+  margin-left: 0;
+}
+
+/* Comfortable pointer targets for the smallest text and map controls. */
+.property-button {
+  min-height: 28px;
+}
+.demo-notice button {
+  min-height: 24px;
+  padding-inline: 4px;
+}
+.matrix-room-link,
+.matrix-floor-link {
+  min-height: 24px;
+}
+.location-pin {
+  width: 24px;
+  height: 24px;
+}
+
+/* Notices inside cards and dialogs line up with their siblings. */
+.settings-grid .banner,
+dialog .banner {
+  margin-inline: 0;
+}
+.budget-notice {
+  flex-wrap: wrap;
+}
+.budget-notice > div {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* The photo-history filter label sits directly above its control. */
+.gallery-heading label {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  text-align: left;
+}
+
+/* Selected-sensor summary: label above value, timestamps never break. */
+.map-sensor-summary dl > div {
+  display: block;
+}
+.map-sensor-summary dd {
+  margin: 4px 0 0;
+  text-align: left;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A whole month fits the strip from 1024px up; narrower windows scroll it. */
+.activity-strip .calendar-days button {
+  flex: 1 0 24px;
+}
+
+/* When the inspector is too narrow for a side column, the summary becomes a
+   compact footer that is always visible under the plan. */
+@container (max-width: 460px) {
+  .map-inspector-layout.has-sensor {
+    height: 100%;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .map-inspector-layout.has-sensor .location-stage {
+    min-height: 180px;
+  }
+  .map-sensor-summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+    padding: 12px 16px;
+  }
+  .map-sensor-symbol {
+    grid-row: 1 / span 3;
+    margin: 0;
+  }
+  .map-sensor-type,
+  .map-sensor-summary h3,
+  .map-sensor-room {
+    grid-column: 2;
+    margin: 0;
+  }
+  .map-sensor-summary h3 {
+    font-size: 14px;
+  }
+  .map-sensor-health {
+    grid-column: 3;
+    grid-row: 1 / span 3;
+    justify-self: end;
+  }
+  .map-sensor-reading,
+  .map-sensor-summary dl {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 20px;
+    margin: 10px 0 0;
+  }
+  .map-sensor-reading strong {
+    font-size: 14px;
+  }
+  .map-sensor-reading strong small {
+    font-size: 11px;
+  }
+  .map-sensor-summary dl > div {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+  }
+  .map-sensor-summary dd {
+    margin: 0;
+  }
+  .map-sensor-summary > button {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+  }
+}
+
+/* Narrow sensor tables: room names wrap so every sensor stays on one row. */
+@media (max-width: 1000px) {
+  .matrix-dashboard .matrix-scroll,
+  .matrix-dashboard .sensor-matrix {
+    width: 100%;
+  }
+  .matrix-dashboard .sensor-matrix thead th:first-child {
+    min-width: 0 !important;
+  }
+  .matrix-dashboard .matrix-room {
+    white-space: normal;
+    width: 36%;
+  }
+  .matrix-room-link {
+    white-space: normal;
+  }
+}
+
+/* Panel connection stays visible on small windows as a line under the title. */
+@media (max-width: 1000px) {
+  .alarm-strip {
+    flex-wrap: wrap;
+  }
+  .connection {
+    display: flex;
+    order: 5;
+    flex: 1 0 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 12px;
+    margin: 0;
+  }
+}
+
+/* House map: one column once the plan would be narrower than the sensor list. */
+@media (max-width: 900px) {
+  .map-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .map-viewport {
+    height: clamp(260px, 72vw, 560px);
+    min-height: 0;
+  }
+  .map-sensor-list {
+    max-height: 320px;
+  }
+}
+
+/* Cameras: one card per row on phones so names and actions are never clipped. */
+@media (max-width: 700px) {
+  .camera-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Phones scroll the page, not a nested panel, and the plan takes only the
+   height it needs. */
+@media (max-width: 760px) {
+  .sensor-context > [role="tabpanel"] {
+    max-height: none;
+    overflow: visible;
+  }
+  .matrix-dashboard .sensor-context {
+    min-height: 0;
+  }
+  .location-stage {
+    height: auto;
+    min-height: 220px;
+  }
+}
+
+/* Floor headers: the count is centred on the same line as the floor name. */
+.matrix-floor-divider small {
+  line-height: 24px;
+}
+.matrix-dashboard .matrix-floor-divider th {
+  padding-block: 0;
+}
+.property {
+  gap: 0;
+}
+.activity-strip .calendar-days button {
+  max-width: 64px;
+}
+
+/* Banners share the page gutters at every width and wrap instead of
+   squeezing their message into a narrow column. */
+.banner {
+  flex-wrap: wrap;
+}
+.banner span {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+@media (max-width: 1250px) {
+  .main-shell > .banner {
+    margin-inline: 18px;
+  }
+}
+@media (max-width: 600px) {
+  .main-shell > .banner {
+    margin-inline: 12px;
+  }
+}
+
+/* Icon-only buttons keep a comfortable target wherever they appear. */
+.icon-button {
+  min-width: 28px;
+  min-height: 28px;
+}
+
+/* Map selection: the name and close button share a row; the workspace link
+   sits beneath instead of squeezing the name. */
+.map-selection .panel-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+.map-selection .panel-heading > button:not(.icon-button) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: start;
+}
+.map-selection .panel-heading > .icon-button {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* Photo viewer: close stays top-right; actions wrap as whole buttons. */
+.photo-viewer .section-heading {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+.photo-viewer .section-heading > button {
+  flex: none;
+}
+.photo-viewer-actions {
+  flex-wrap: wrap;
+}
+.photo-viewer-actions button {
+  white-space: nowrap;
+}
+
+/* 3D model: the canvas follows its drawing's proportions on small windows,
+   and each control keeps its label and unit on one line. */
+.house-model .model-controls label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .model-canvas {
+    min-height: 0;
+    aspect-ratio: 1000 / 650;
+  }
+}
+.map-selection .panel-heading {
+  margin-bottom: 8px;
+}
+
+/* Floor-plan loading and empty messages sit centred in the panel. */
+.sensor-location > .note {
+  margin: auto;
+  padding: 48px 24px;
+  max-width: 44ch;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+   Side-panel plan: 2D / 3D switch and in-place position editing.
+   ------------------------------------------------------------------------- */
+.sensor-location {
+  position: relative;
+}
+.location-view-switch {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+.location-edit-toolbar .location-view-switch button {
+  min-width: 32px;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+  border-radius: 4px;
+}
+.location-edit-toolbar .location-view-switch button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--green);
+  border: 0;
+  box-shadow: 0 1px 3px #0000001a;
+}
+.location-view-switch + * {
+  margin-left: 3px;
+}
+
+/* The editor sits in the flow above the plan so the plan never moves under
+   the pointer while a marker is being dragged. */
+.location-editor {
+  flex-shrink: 0;
+  display: grid;
+  gap: 8px;
+  margin: 36px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  background: var(--green-bg);
+  font-size: 12px;
+}
+.location-editor-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.location-editor-heading strong {
+  margin-right: auto;
+  color: var(--green);
+}
+.location-editor-heading select {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.location-editor-heading button,
+.location-editor-actions button {
+  padding: 5px 9px;
+  font-size: 11px;
+}
+.location-editor-hint {
+  color: var(--ink);
+  line-height: 1.45;
+}
+.location-editor-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.location-editor-actions select {
+  padding: 5px 8px;
+  font-size: 11px;
+  max-width: 100%;
+}
+.location-status {
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 650;
+  background: var(--surface);
+  color: var(--muted);
+}
+.location-status.confirmed {
+  color: var(--green);
+}
+.location-status.unplaced {
+  color: var(--amber);
+}
+.location-editor label.location-direction {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+  margin: 0;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.location-direction input {
+  flex: 1;
+  min-width: 80px;
+  padding: 0;
+}
+.location-editor .note,
+.location-editor .warning-text {
+  font-size: 11px;
+}
+.is-editing .location-plan {
+  cursor: crosshair;
+  touch-action: none;
+}
+.is-editing .location-rooms polygon {
+  pointer-events: none;
+}
+.is-editing .location-pin {
+  cursor: grab;
+  touch-action: none;
+}
+.location-camera-directions {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* 3D in the panel: the canvas keeps its proportions and controls scroll
+   with it instead of being clipped. */
+.location-model {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin-top: 36px;
+}
+.location-model .house-model {
+  display: grid;
+  gap: 0;
+}
+.location-model .model-controls {
+  padding: 8px 0;
+  gap: 8px;
+  border: 0;
+}
+.location-model .model-controls button {
+  padding: 5px 9px;
+  font-size: 11px;
+}
+.location-model .model-canvas {
+  min-height: 0;
+  max-height: none;
+  height: auto;
+  aspect-ratio: 1000 / 650;
+  border-radius: 8px;
+}
+.model-about {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 6px 0;
+}
+.model-about summary {
+  cursor: pointer;
+  padding: 4px 0;
+}
+.model-about .model-notes,
+.model-about .model-review {
+  margin: 6px 0 0;
+}
+
+/* While editing, the editor already names the sensor and its status, so the
+   summary column steps aside and the plan keeps the space. */
+.map-inspector-layout:has(.sensor-location.is-editing) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.map-inspector-layout:has(.sensor-location.is-editing) .map-sensor-summary {
+  display: none;
+}
+.sensor-location.is-editing {
+  overflow-y: auto;
+}
+.sensor-location.is-editing .location-stage {
+  min-height: 180px;
+}
+
+/* Room assignment in sensor details; devices without a reported room
+   (smart plugs) are flagged until one is chosen. */
+.room-assignment {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 4px;
+}
+.room-assignment label {
+  margin: 0;
+}
+.room-assignment select {
+  width: 100%;
+}
+.room-assignment.is-missing select {
+  border-color: var(--amber);
+}
+.room-assignment p {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  color: var(--amber);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.room-assignment p svg {
+  margin-top: 2px;
+}
+.map-sensor-unassigned {
+  margin: 0 0 10px;
+  color: var(--amber);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.sensor-context .room-assignment,
+.sensor-context .plug-information {
+  grid-column: 1 / -1;
+}
+.sensor-context .plug-information {
+  margin: 0 0 8px;
+}
+
+.outage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+.outage-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.outage-list span {
+  color: var(--muted);
+}
+
+/* Whole-house row and overview: every floor plan as a card. */
+.matrix-house-row th {
+  height: 32px;
+  font-size: 11px;
+}
+.matrix-house-link {
+  font-weight: 700;
+}
+.house-overview-title {
+  margin-right: auto;
+  align-self: center;
+  font-size: 13px;
+}
+.house-overview-back {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.house-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  align-content: start;
+}
+/* Fitted: rows and columns are chosen to fill the panel, drawings grow. */
+.house-overview.is-fitted {
+  overflow: hidden;
+}
+.house-overview.is-fitted .house-plan-card {
+  min-height: 0;
+}
+.house-overview.is-fitted .house-plan-thumb {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+/* Over the whole house the title and view switch form a header row in the
+   flow, so the cards always start a clear gap below it. */
+.sensor-location.is-house .location-edit-toolbar {
+  position: static;
+  margin-bottom: 12px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+}
+.sensor-location.is-house .location-view-switch {
+  margin-left: auto;
+}
+.house-plan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+.house-plan-card:hover,
+.house-plan-card:focus-visible {
+  border-color: var(--green);
+  background: var(--green-bg);
+}
+.house-plan-card:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.house-plan-thumb {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 190px;
+}
+.house-plan-thumb svg.map-vector {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.house-plan-thumb .plan-room-label,
+.house-plan-thumb .plan-area-label {
+  display: none;
+}
+.house-plan-blank {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+.house-plan-card strong {
+  font-size: 12px;
+}
+.house-plan-card small {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* Colour means something: orange = open, red = alarm (or open while fully
+   armed). Health issues stay quiet and everything else is neutral, in the
+   sensor list, the floor plan and the 3D model alike. */
+:root {
+  --orange: #b34a00;
+  --orange-bg: #ffe3c7;
+  --orange-solid: #e8730c;
+}
+:root[data-theme="dark"] {
+  --orange: #ffb070;
+  --orange-bg: #4d2f17;
+  --orange-solid: #e8730c;
+}
+.filters .open-filter {
+  color: var(--orange);
+}
+.matrix-key .open {
+  background: var(--orange-solid);
+}
+.matrix-dashboard .matrix-sensor.attention {
+  background: var(--surface-alt);
+  border-color: var(--line);
+  color: var(--amber);
+}
+.matrix-dashboard .matrix-sensor.open {
+  background: var(--orange-bg);
+  color: var(--orange);
+  border: 1.5px solid var(--orange-solid);
+}
+.matrix-dashboard .matrix-sensor.open-armed {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1.5px solid var(--red);
+}
+.matrix-sensor.open .matrix-sensor-alert {
+  background: var(--orange-solid);
+  color: #fff;
+}
+.matrix-sensor.open-armed .matrix-sensor-alert {
+  background: var(--red);
+  color: var(--surface);
+}
+.sensor-matrix tr.has-open .matrix-room {
+  box-shadow: inset 3px 0 0 var(--orange-solid);
+}
+.map-sensor-summary .attention {
+  color: var(--amber);
+  background: var(--surface);
+}
+.map-sensor-summary .neutral {
+  color: var(--muted);
+  background: var(--surface);
+}
+.map-sensor-summary .map-sensor-symbol.open {
+  color: #fff;
+  background: var(--orange-solid);
+}
+.map-sensor-summary .map-sensor-symbol.open-armed {
+  color: var(--surface);
+  background: var(--red);
+}
+.map-sensor-summary dd.map-sensor-state {
+  background: none;
+  font-weight: 700;
+}
+.map-sensor-summary dd.map-sensor-state.open {
+  color: var(--orange);
+}
+.map-sensor-summary dd.map-sensor-state:is(.open-armed, .alarm) {
+  color: var(--red);
+}
+.house-plan-open {
+  color: var(--orange);
+  font-weight: 700;
+}
+.house-plan-open.is-alert {
+  color: var(--red);
+}
+.sensor-matrix tr.has-open.is-alert .matrix-room {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+/* Floor-plan pins sit on light paper in both themes, so their colours are
+   fixed rather than themed. */
+.location-pin.unknown {
+  background: #f4f5f3;
+  color: #a2aaa5;
+}
+.location-pin.attention::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b98228;
+  border: 1.5px solid #fff;
+}
+.location-pin:is(.open, .open-armed, .alarm) {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  color: #fff;
+  z-index: 1;
+}
+.location-pin.open {
+  background: #e8730c;
+  border-color: #b34a00;
+  box-shadow: 0 0 0 4px #e8730c40;
+}
+.location-pin:is(.open-armed, .alarm) {
+  background: #c93a35;
+  border-color: #9c2723;
+  box-shadow: 0 0 0 4px #c93a3540;
+}
+.location-pin:is(.open, .open-armed, .alarm).is-selected {
+  outline-color: #33403b;
+}
+.location-pin.alarm {
+  animation: pin-alarm 1.4s ease-in-out infinite;
+}
+@keyframes pin-alarm {
+  50% {
+    box-shadow: 0 0 0 9px #c93a3526;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .location-pin.alarm {
+    animation: none;
+  }
+}
+.model-sensor circle {
+  fill: #7b8581;
+}
+.model-sensor.unknown circle {
+  fill: #b9c0bc;
+}
+.model-sensor.attention circle {
+  stroke: #b98228;
+}
+.model-sensor.open circle {
+  fill: #e8730c;
+}
+.model-sensor:is(.open-armed, .alarm) circle {
+  fill: #c93a35;
+}
+.model-sensor-heading {
+  stroke: #8b9490;
+}
+
+/* Sensor details: the two sections open as cards, with facts in a compact
+   label-over-value grid instead of a long stretched list. */
+.detail-panel details:is(.sensor-information, .local-edit) {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-alt);
+}
+.detail-panel details:is(.sensor-information, .local-edit) > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 0;
+  list-style: none;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.detail-panel details > summary::-webkit-details-marker {
+  display: none;
+}
+.detail-panel details > summary small {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.detail-panel details > summary svg {
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.detail-panel details[open] > summary svg {
+  transform: rotate(90deg);
+}
+.detail-panel details[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+.detail-panel .sensor-information dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px 16px;
+  margin: 14px 0 10px;
+}
+.detail-panel .sensor-information dl > div {
+  display: block;
+  padding: 0;
+  border: 0;
+  font-size: 11px;
+}
+.detail-panel .sensor-information dt {
+  margin-bottom: 3px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.detail-panel .sensor-information dd {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink);
+}
+.detail-panel .sensor-information dd.is-empty {
+  font-weight: 400;
+  color: var(--muted);
+}
+.detail-panel .sensor-information .note {
+  margin: 0 0 12px;
+  font-size: 10px;
+}
+.detail-panel .local-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0 16px;
+  padding-bottom: 6px;
+}
+.detail-panel details.local-edit label {
+  margin: 12px 0 8px;
+  gap: 5px;
+}
+.detail-panel details.local-edit input {
+  width: 100%;
+  min-width: 0;
+  background: var(--surface);
+}
+@media (prefers-reduced-motion: reduce) {
+  .detail-panel details > summary svg {
+    transition: none;
+  }
+}
+
+/* Reorder controls for floor sections and room rows; shown on hover or focus. */
+.matrix-move {
+  float: right;
+  display: inline-flex;
+  gap: 1px;
+  margin-left: 6px;
+  opacity: 0;
+}
+.matrix-floor-divider .matrix-move {
+  height: 24px;
+  align-items: center;
+}
+tr:hover > th > .matrix-move,
+.matrix-move:focus-within {
+  opacity: 1;
+}
+.matrix-move button {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+}
+.matrix-move button svg {
+  margin: 0;
+  transform: rotate(90deg);
+}
+.matrix-move button:first-child svg {
+  transform: rotate(-90deg);
+}
+.matrix-move button:hover:not(:disabled) {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.matrix-move button:disabled {
+  opacity: 0.3;
+}
+.matrix-move button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+@media (hover: none) {
+  .matrix-move {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Photo comparison: where a photo differs from the camera's previous one.
+   One accent for every outline: it marks a place, and claims nothing more.
+   ------------------------------------------------------------------------- */
+.compared-photo {
+  position: relative;
+}
+.camera-thumbnail .compared-photo {
+  height: 100%;
+}
+.photo-changes,
+.photo-before {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.photo-before {
+  object-fit: contain;
+  background: #14221d;
+}
+.photo-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #0006;
+  pointer-events: none;
+}
+.photo-change {
+  fill: #ffd84a1f;
+  stroke: #ffd84a;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  animation: photo-change-pulse 1.6s ease-in-out 3;
+}
+@keyframes photo-change-pulse {
+  50% {
+    fill: #ffd84a52;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo-change {
+    animation: none;
+  }
+}
+.photo-change-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #ffd84a;
+  color: #14221d;
+  font-size: 11px;
+  font-weight: 700;
+}
+.camera-changes {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 11px;
+  color: var(--muted);
+}
+button.camera-changes.has-changes {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #ffd84a33;
+  color: var(--ink);
+  font-weight: 650;
+  cursor: pointer;
+}
+button.camera-changes.has-changes:hover {
+  background: #ffd84a66;
+}
+.photo-compare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 12px 0 8px;
+  font-size: 12px;
+}
+.photo-compare strong.has-changes {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ffd84a40;
+}
+.photo-compare > span {
+  color: var(--muted);
+  margin-right: auto;
+}
+.photo-compare label {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.photo-compare input[type="range"] {
+  width: 140px;
+  accent-color: var(--green);
+}
+.photo-compare button {
+  font-size: 11px;
+  padding: 5px 9px;
+}
+.photo-compare button[aria-pressed="true"] {
+  color: var(--green);
+  background: var(--green-bg);
+  border-color: var(--green);
+}
+.photo-hold {
+  user-select: none;
+  touch-action: none;
+}
+.photo-compare-note {
+  margin-top: 8px;
+  font-size: 11px;
 }

@@ -4,15 +4,18 @@ import { CameraInspector, useCameraLibrary } from "./CameraInspector";
 import { isCamera } from "../../shared/cameras";
 import { canSelectActivityDay } from "../../shared/activity-calendar";
 import { SensorLocation } from "./SensorLocation";
+import { RoomAssignment, assignRoom } from "./RoomAssignment";
 import { ActivityCalendar, ActivityDay } from "./ActivityCalendar";
 import { TemperatureSettings } from "./TemperatureSettings";
 import { useLanguage } from "./i18n";
 import { Tooltip } from "./Tooltip";
 import { SensorMatrix } from "./SensorMatrix";
-import { HouseMap } from "./HouseMap";
 import { BudgetNotice } from "./BudgetNotice";
+import { PowerNotice } from "./PowerNotice";
+import { InferredOutageNotice, InferredOutageHistory } from "./InferredOutages";
 import { Cameras } from "./Cameras";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { planFloors, type MapProject } from "../../shared/house-map";
 import type { Action, Device, Preferences, Snapshot } from "../../shared/model";
 import {
   defaults,
@@ -23,7 +26,10 @@ import {
   needsAttention,
   modeLabel,
   age,
+  placedDevice,
+  reportsNoRoom,
 } from "../../shared/model";
+import { roomKey } from "../../shared/climate";
 import {
   averageTemperature,
   temperatureText,
@@ -93,7 +99,12 @@ function Modal({
   const { t } = useLanguage();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
+    // Closing returns keyboard focus to whatever opened the dialog.
+    const opener = document.activeElement as HTMLElement | null;
     ref.current?.showModal();
+    return () => {
+      if (opener?.isConnected) opener.focus();
+    };
   }, []);
   return (
     <dialog ref={ref} onCancel={onClose}>
@@ -114,11 +125,39 @@ function Modal({
 export default function App() {
   const { t, setLanguage } = useLanguage();
   const [snap, setSnap] = useState<Snapshot>();
-  const [prefs, setPrefs] = useState(defaults);
+  const [stored, setPrefs] = useState(defaults);
+  const [mapProject, setMapProject] = useState<MapProject>();
+  useEffect(() => {
+    let alive = true;
+    setMapProject(undefined);
+    if (snap?.panelId)
+      bridge
+        .houseMap()
+        .then((value) => {
+          if (alive) setMapProject(value);
+        })
+        .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [snap?.panelId, snap?.demo]);
+  // Rooms drawn on another plan than the rest of their floor get that plan as
+  // their floor section; a floor group chosen locally still wins.
+  const autoFloors = useMemo(
+    () =>
+      mapProject && snap ? planFloors(snap.devices, mapProject) : undefined,
+    [mapProject, snap?.devices],
+  );
+  const prefs = useMemo(
+    () =>
+      autoFloors && Object.keys(autoFloors).length
+        ? { ...stored, roomFloors: { ...autoFloors, ...stored.roomFloors } }
+        : stored,
+    [stored, autoFloors],
+  );
   const [view, setView] = useState<
-    "overview" | "activity" | "settings" | "cameras" | "map"
+    "overview" | "activity" | "settings" | "cameras"
   >("overview");
-  const [mapEditPlan, setMapEditPlan] = useState<string>();
   const [filter, setFilter] = useState("all");
   const [inspectorTab, setInspectorTab] = useState<
     "details" | "map" | "activity" | "photos"
@@ -306,6 +345,16 @@ export default function App() {
     }
   }
   function save(p: Preferences) {
+    // Floor sections derived from the plans are not saved as local choices.
+    if (p.roomFloors && autoFloors) {
+      const own = Object.entries(p.roomFloors).filter(
+        ([key, floor]) => autoFloors[key] !== floor || stored.roomFloors?.[key],
+      );
+      p = {
+        ...p,
+        roomFloors: own.length ? Object.fromEntries(own) : undefined,
+      };
+    }
     setLanguage(p.language === "es" ? "es" : "en");
     setPrefs(p);
     void bridge.savePreferences(p).catch((e) => setError(e.message));
@@ -443,7 +492,6 @@ export default function App() {
             <div className="rail-nav">
               {[
                 ["overview", "grid", t("House overview")],
-                ["map", "layers", t("House map")],
                 ["cameras", "camera", t("Cameras")],
                 ["activity", "clock", t("Activity")],
                 ["settings", "settings", t("Settings")],
@@ -664,6 +712,8 @@ export default function App() {
                 </button>
               </div>
             )}
+            <PowerNotice snap={snap} prefs={prefs} onSave={save} />
+            <InferredOutageNotice snap={snap} prefs={prefs} onSave={save} />
             <BudgetNotice snap={snap} />
             {Object.keys(snap.warnings).length > 0 && (
               <div className="banner warning" role="status">
@@ -711,30 +761,6 @@ export default function App() {
               </div>
             )}
             <main>
-              {view === "map" && (
-                <HouseMap
-                  key={`${snap.demo}:${snap.panelId}`}
-                  snap={snap}
-                  prefs={prefs}
-                  initialSelectedId={selected}
-                  initialPlanId={mapEditPlan}
-                  initialEdit={!!mapEditPlan}
-                  onFinishEditing={
-                    mapEditPlan
-                      ? () => {
-                          setMapEditPlan(undefined);
-                          setInspectorTab("map");
-                          setView("overview");
-                        }
-                      : undefined
-                  }
-                  onInspect={(id) => {
-                    setSelected(id);
-                    setInspectorTab("details");
-                    setView("overview");
-                  }}
-                />
-              )}
               {view === "cameras" && (
                 <Cameras
                   key={`${snap.demo}:${snap.panelId}`}
@@ -761,7 +787,7 @@ export default function App() {
                       ].map(([id, label, count, icon]) => (
                         <button
                           key={id}
-                          className={`${filter === id ? "selected" : ""} ${id === "attention" && attention ? "attention-filter" : ""}`}
+                          className={`${filter === id ? "selected" : ""} ${id === "attention" && attention ? "attention-filter" : ""} ${id === "open" && open ? "open-filter" : ""}`}
                           aria-pressed={filter === id}
                           onClick={() => setFilter(String(id))}
                         >
@@ -791,6 +817,7 @@ export default function App() {
                       snap={snap}
                       devices={filtered}
                       prefs={prefs}
+                      onReorder={(order) => save({ ...prefs, ...order })}
                       now={now}
                       selected={selected}
                       onSelect={(id) => {
@@ -805,6 +832,17 @@ export default function App() {
                           ? location(floorFocus, prefs).floor
                           : undefined
                       }
+                      house={{
+                        name: homeName,
+                        active: !selected && !roomFocus && !floorFocus,
+                        onSelect: () => {
+                          setSelected(undefined);
+                          setRoomFocus(undefined);
+                          setFloorFocus(undefined);
+                          setInspectorTab("map");
+                          revealInspector();
+                        },
+                      }}
                       onSelectFloor={(device) => {
                         setSelected(undefined);
                         setRoomFocus(undefined);
@@ -886,6 +924,39 @@ export default function App() {
                                       "Choose a square to inspect its status, temperature and recent activity.",
                                     )}
                               </p>
+                              {roomFocus && !reportsNoRoom(roomFocus) && (
+                                <label className="room-floor-group">
+                                  {t("Floor group for this room")}
+                                  <input
+                                    value={
+                                      prefs.roomFloors?.[
+                                        roomKey(placedDevice(roomFocus, prefs))
+                                      ] || ""
+                                    }
+                                    placeholder={
+                                      location(roomFocus, prefs).floor
+                                    }
+                                    onChange={(e) => {
+                                      const key = roomKey(
+                                        placedDevice(roomFocus, prefs),
+                                      );
+                                      const { [key]: _previous, ...rest } =
+                                        prefs.roomFloors || {};
+                                      save({
+                                        ...prefs,
+                                        roomFloors: e.target.value
+                                          ? { ...rest, [key]: e.target.value }
+                                          : rest,
+                                      });
+                                    }}
+                                  />
+                                  <small>
+                                    {t(
+                                      "Shows this room as its own floor in the sensor list. Saved on this computer only.",
+                                    )}
+                                  </small>
+                                </label>
+                              )}
                             </section>
                           )}
                           {detail && (
@@ -913,6 +984,12 @@ export default function App() {
                                 {location(detail, prefs).floor} /{" "}
                                 {location(detail, prefs).room}
                               </p>
+                              <RoomAssignment
+                                device={detail}
+                                devices={snap.devices}
+                                prefs={prefs}
+                                onSave={save}
+                              />
                               <div className="sensor-focus-stats">
                                 <div>
                                   <span>{t("Temperature")}</span>
@@ -941,21 +1018,25 @@ export default function App() {
                                 </div>
                               </div>
                               {detail.type === "SmartPlug" && (
-                                <dl>
-                                  <dt>{t("Timer")}</dt>
-                                  <dd>
-                                    {t(
-                                      detail.timerActive === undefined
-                                        ? "Not reported"
-                                        : detail.timerActive
-                                          ? "On"
-                                          : "Off",
-                                    )}
-                                  </dd>
-                                  <dt>{t("Manufacturer")}</dt>
-                                  <dd>
-                                    {detail.manufacturer || t("Not reported")}
-                                  </dd>
+                                <dl className="plug-information">
+                                  <div>
+                                    <dt>{t("Timer")}</dt>
+                                    <dd>
+                                      {t(
+                                        detail.timerActive === undefined
+                                          ? "Not reported"
+                                          : detail.timerActive
+                                            ? "On"
+                                            : "Off",
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>{t("Manufacturer")}</dt>
+                                    <dd>
+                                      {detail.manufacturer || t("Not reported")}
+                                    </dd>
+                                  </div>
                                 </dl>
                               )}
                               {selectedCamera && (
@@ -966,8 +1047,11 @@ export default function App() {
                                   onControls={openCameraControls}
                                 />
                               )}
-                              <details className="sensor-information">
-                                <summary>{t("Sensor information")}</summary>
+                              <details className="sensor-information" open>
+                                <summary>
+                                  {t("Sensor information")}
+                                  <Icon name="chevron" size={13} />
+                                </summary>
                                 <dl>
                                   {[
                                     [
@@ -978,7 +1062,12 @@ export default function App() {
                                     ],
                                     [
                                       t("Temperature fetched"),
-                                      madrid(detail.temperatureFetchedAt, true),
+                                      t(
+                                        madrid(
+                                          detail.temperatureFetchedAt,
+                                          true,
+                                        ),
+                                      ),
                                     ],
                                     [t("Activity"), t(deviceState(detail))],
                                     [
@@ -1002,11 +1091,11 @@ export default function App() {
                                     [t("Tamper"), t("Not supplied by API")],
                                     [
                                       t("Last change"),
-                                      madrid(detail.changedAt, true),
+                                      t(madrid(detail.changedAt, true)),
                                     ],
                                     [
                                       t("Data fetched"),
-                                      madrid(detail.fetchedAt, true),
+                                      t(madrid(detail.fetchedAt, true)),
                                     ],
                                     [
                                       t("Last sensor report"),
@@ -1018,7 +1107,16 @@ export default function App() {
                                   ].map(([k, v]) => (
                                     <div key={k}>
                                       <dt>{k}</dt>
-                                      <dd>{v}</dd>
+                                      <dd
+                                        className={
+                                          v === t("Not reported") ||
+                                          v === t("Not supplied by API")
+                                            ? "is-empty"
+                                            : undefined
+                                        }
+                                      >
+                                        {v}
+                                      </dd>
                                     </div>
                                   ))}
                                 </dl>
@@ -1028,47 +1126,54 @@ export default function App() {
                                   )}
                                 </p>
                               </details>
-                              <details className="local-edit">
-                                <summary>{t("Local names & groups")}</summary>
-                                <p>{t("Saved on this computer only.")}</p>
-                                {[
-                                  ["name", t("Friendly name")],
-                                  ["spanish", "Nombre en español"],
-                                  ["floor", t("Floor group")],
-                                  ["room", t("Room group")],
-                                ].map(([key, label]) => (
-                                  <label key={key}>
-                                    {label}
-                                    <input
-                                      value={
-                                        prefs.aliases[detail.id]?.[
-                                          key as "name"
-                                        ] || ""
-                                      }
-                                      placeholder={
-                                        key === "spanish"
-                                          ? detail.spanish || detail.original
-                                          : key === "floor"
-                                            ? location(detail, prefs).floor
-                                            : key === "room"
-                                              ? location(detail, prefs).room
-                                              : detail.original
-                                      }
-                                      onChange={(e) =>
-                                        save({
-                                          ...prefs,
-                                          aliases: {
-                                            ...prefs.aliases,
-                                            [detail.id]: {
-                                              ...prefs.aliases[detail.id],
-                                              [key]: e.target.value,
+                              <details className="local-edit" open>
+                                <summary>
+                                  {t("Local names & groups")}
+                                  <small>
+                                    {t("Saved on this computer only.")}
+                                  </small>
+                                  <Icon name="chevron" size={13} />
+                                </summary>
+                                <div className="local-edit-fields">
+                                  {[
+                                    ["name", t("Friendly name")],
+                                    ["spanish", "Nombre en español"],
+                                    ["floor", t("Floor group")],
+                                    ["room", t("Room group")],
+                                  ].map(([key, label]) => (
+                                    <label key={key}>
+                                      {label}
+                                      <input
+                                        value={
+                                          prefs.aliases[detail.id]?.[
+                                            key as "name"
+                                          ] || ""
+                                        }
+                                        placeholder={
+                                          key === "spanish"
+                                            ? detail.spanish || detail.original
+                                            : key === "floor"
+                                              ? location(detail, prefs).floor
+                                              : key === "room"
+                                                ? location(detail, prefs).room
+                                                : detail.original
+                                        }
+                                        onChange={(e) =>
+                                          save({
+                                            ...prefs,
+                                            aliases: {
+                                              ...prefs.aliases,
+                                              [detail.id]: {
+                                                ...prefs.aliases[detail.id],
+                                                [key]: e.target.value,
+                                              },
                                             },
-                                          },
-                                        })
-                                      }
-                                    />
-                                  </label>
-                                ))}
+                                          })
+                                        }
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
                               </details>
                             </aside>
                           )}
@@ -1091,11 +1196,11 @@ export default function App() {
                               selected={detail}
                               focusRoom={roomFocus}
                               focusFloor={floorFocus}
-                              onEdit={(planId) => {
-                                setMapEditPlan(planId);
-                                setView("map");
-                              }}
+                              houseName={homeName}
                               onSelect={setSelected}
+                              onAssign={(id, source) =>
+                                save(assignRoom(prefs, id, source))
+                              }
                             />
                             {detail && (
                               <MapSensorSummary
@@ -1213,9 +1318,10 @@ export default function App() {
                       <p>
                         {snap.demo
                           ? t("Explore safely with simulated data.")
-                          : "Connected to " +
-                            homeName +
-                            ". Live controls start disabled."}
+                          : t(
+                              "Connected to {0}. Live controls start disabled.",
+                              homeName,
+                            )}
                       </p>
                       <button
                         className="primary"
@@ -1471,11 +1577,12 @@ export default function App() {
                         </div>
                         <div>
                           <dt>{t("Desktop notifications")}</dt>
-                          <dd>{t("Not implemented")}</dd>
+                          <dd>{t("Power cuts only")}</dd>
                         </div>
                       </dl>
                     </section>
                     <TemperatureSettings prefs={prefs} onSave={save} />
+                    <InferredOutageHistory snap={snap} />
                     {snap.demo && (
                       <section className="scenario-settings">
                         <h3>
@@ -1491,6 +1598,13 @@ export default function App() {
                             ["normal", t("Mixed sensor states")],
                             ["stale", t("Stale connection")],
                             ["offline", t("Panel offline")],
+                            ["power-out", t("Power outage")],
+                            ["power-restored", t("Power restored")],
+                            ["possible-cut", t("Possible power cut")],
+                            [
+                              "possible-cut-ended",
+                              t("Possible power cut ended"),
+                            ],
                             ["partial", t("Partial refresh failure")],
                             ["expired", t("Expired session")],
                             ["triggered", t("Sensor alarm")],

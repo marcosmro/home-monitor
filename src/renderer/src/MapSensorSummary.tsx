@@ -1,8 +1,11 @@
 import {
-  age,
   deviceHealth,
+  deviceIsStale,
   deviceState,
+  deviceTone,
   displayDevice,
+  isHealthy,
+  reportsNoRoom,
   location,
   type Device,
   type Preferences,
@@ -29,17 +32,15 @@ export function MapSensorSummary({
   const { t } = useLanguage();
   const health = deviceHealth(device);
   const state = deviceState(device);
-  const stale =
-    device.stale ||
-    age(device.fetchedAt, now) > 1200000 ||
-    snap.online !== true;
-  const tone = device.alarm
-    ? "alarm"
-    : stale || health === "Unknown" || health === "Offline"
-      ? "unknown"
-      : health !== "OK" || state === "Open"
-        ? "attention"
-        : "healthy";
+  const stale = deviceIsStale(device, snap.online, now);
+  const tone = deviceTone(device, { stale, armed: snap.mode === "armed" });
+  // The health pill reports the device itself; being open is not a fault.
+  const healthTone =
+    tone === "open" || tone === "open-armed"
+      ? isHealthy(device)
+        ? "healthy"
+        : "attention"
+      : tone;
   return (
     <aside className="map-sensor-summary" aria-label={t("Selected sensor")}>
       <span className={`map-sensor-symbol ${tone}`}>
@@ -50,8 +51,13 @@ export function MapSensorSummary({
       <p className="map-sensor-room">
         {location(device, prefs).room} · {location(device, prefs).floor}
       </p>
-      <span className={`map-sensor-health ${tone}`}>
-        {t(stale ? "Stale" : health === "OK" ? "Healthy" : health)}
+      {reportsNoRoom(device) && !prefs.aliases[device.id]?.placeRoomId && (
+        <p className="map-sensor-unassigned">
+          {t("No room assigned yet. Choose one in Details or edit the plan.")}
+        </p>
+      )}
+      <span className={`map-sensor-health ${healthTone}`}>
+        {t(stale ? "Stale" : isHealthy(device) ? "Healthy" : health)}
       </span>
       {device.temperature !== undefined && (
         <div className="map-sensor-reading">
@@ -73,7 +79,15 @@ export function MapSensorSummary({
         {state !== "Not reported" && (
           <div>
             <dt>{t("Activity")}</dt>
-            <dd>{t(state)}</dd>
+            <dd
+              className={
+                tone === "open" || tone === "open-armed" || tone === "alarm"
+                  ? `map-sensor-state ${tone}`
+                  : undefined
+              }
+            >
+              {t(state)}
+            </dd>
           </div>
         )}
         {stale && (

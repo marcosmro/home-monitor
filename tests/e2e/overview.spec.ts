@@ -38,7 +38,6 @@ test("local Spanish alias persists in the matrix with original preserved", async
 }) => {
   await page.locator(".matrix-sensor").first().click();
   await page.getByRole("button", { name: "View details", exact: true }).click();
-  await page.getByText("Local names & groups", { exact: true }).first().click();
   await page
     .getByRole("textbox", { name: "Nombre en español" })
     .fill("Puerta de José — entrada principal");
@@ -231,24 +230,24 @@ test("capture queue shows estimated progress and an animated active camera", asy
   await expect(page.locator(".capture-spinner")).toHaveCount(0);
 });
 
-test("house map suggestions can be moved, persisted, and removed", async ({
+test("side-panel sensor positions can be moved, persisted, and removed", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "House map", exact: true }).click();
-  await expect(page.locator(".map-pin")).toHaveCount(16);
-  await expect(page.locator(".house-map")).toContainText("48 suggested");
-  await page
-    .getByRole("button", { name: "Edit locations", exact: true })
-    .click();
-  const pin = page.locator(".map-pin").first();
-  await pin.click();
+  await page.locator(".matrix-sensor").first().click();
+  await expect(page.locator(".location-pin")).toHaveCount(16);
+  const edit = page.getByRole("button", {
+    name: "Edit sensor locations",
+    exact: true,
+  });
+  await edit.click();
+  await expect(edit).toHaveAttribute("aria-pressed", "true");
   await expect(
     page.getByRole("button", { name: "Confirm this location" }),
   ).toBeVisible();
-  const box = await page.locator(".map-canvas").boundingBox();
+  const box = await page.locator(".location-plan").boundingBox();
   await page.mouse.click(box!.x + box!.width * 0.1, box!.y + box!.height * 0.1);
-  await expect(page.locator(".map-pin.confirmed")).toHaveCount(1);
-  const marker = await page.locator(".map-pin.confirmed").boundingBox();
+  await expect(page.locator(".location-pin.confirmed")).toHaveCount(1);
+  const marker = await page.locator(".location-pin.confirmed").boundingBox();
   await page.mouse.move(
     marker!.x + marker!.width / 2,
     marker!.y + marker!.height / 2,
@@ -261,7 +260,7 @@ test("house map suggestions can be moved, persisted, and removed", async ({
   await expect
     .poll(async () => {
       const left = await page
-        .locator(".map-pin.confirmed")
+        .locator(".location-pin.confirmed")
         .evaluate((el) => parseFloat(getComputedStyle(el).left));
       return Math.abs(left - box!.width * 0.3);
     })
@@ -270,41 +269,33 @@ test("house map suggestions can be moved, persisted, and removed", async ({
   await page
     .getByRole("button", { name: "Start demo mode", exact: true })
     .click();
-  await page.getByRole("button", { name: "House map", exact: true }).click();
-  await expect(page.locator(".map-pin.confirmed")).toHaveCount(1);
-  await page.locator(".map-pin.confirmed").click();
+  await page.locator(".matrix-sensor").first().click();
+  await expect(page.locator(".location-pin.confirmed")).toHaveCount(1);
   await page
-    .getByRole("button", { name: "Edit locations", exact: true })
+    .getByRole("button", { name: "Edit sensor locations", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Remove from map", exact: true })
     .click();
-  await expect(page.locator(".house-map")).toContainText("1 unplaced");
-  await expect(page.locator(".map-pin")).toHaveCount(15);
+  await expect(page.locator(".location-pin")).toHaveCount(15);
+  await expect(page.locator(".location-editor")).toContainText(
+    "is not on the map yet",
+  );
 });
 
-test("vector map supports source comparison, opening assignment, and saved camera direction", async ({
+test("side-panel editing supports opening assignment and saved camera direction", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "House map", exact: true }).click();
-  await expect(page.locator(".map-vector")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Original plan", exact: true })
-    .click();
-  await expect(page.locator(".map-plan-image")).toBeVisible();
-  await page.getByRole("button", { name: "Show redraw", exact: true }).click();
   const camera = () =>
-    page
-      .locator(".map-sensor-list button")
-      .filter({ hasText: "Entrada" })
-      .filter({ hasText: "Detector con cámara" });
+    page.locator('.matrix-sensor[aria-label^="Detector con cámara"]').first();
   await camera().click();
   await page
-    .getByRole("button", { name: "Edit locations", exact: true })
+    .getByRole("button", { name: "Edit sensor locations", exact: true })
     .click();
   await page
     .getByLabel("Place at identified opening", { exact: true })
     .selectOption("V1");
+  await expect(page.locator(".location-pin.confirmed")).toHaveCount(1);
   const direction = page.getByLabel("Camera direction", { exact: true });
   await direction.fill("90");
   await direction.press("ArrowRight");
@@ -313,21 +304,25 @@ test("vector map supports source comparison, opening assignment, and saved camer
   await page
     .getByRole("button", { name: "Start demo mode", exact: true })
     .click();
-  await page.getByRole("button", { name: "House map", exact: true }).click();
   await camera().click();
+  await expect(page.locator(".camera-direction")).toHaveCount(1);
   await page
-    .getByRole("button", { name: "Edit locations", exact: true })
+    .getByRole("button", { name: "Edit sensor locations", exact: true })
     .click();
   await expect(
     page.getByLabel("Camera direction", { exact: true }),
   ).toHaveValue("91");
-  await expect(page.locator(".camera-direction")).toHaveCount(1);
+  await page.getByLabel("Camera direction", { exact: true }).focus();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".location-editor")).toHaveCount(0);
+  await expect(page.locator(".location-pin.is-selected")).toHaveCount(1);
 });
 
-test("3D model orbits, changes wall height, exports geometry, and returns to editable 2D", async ({
+test("side-panel 3D view orbits, changes wall height, exports geometry, and returns to 2D", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "House map", exact: true }).click();
+  // With nothing selected the panel shows every floor; open the first one.
+  await page.locator(".house-plan-card").first().click();
   await page.getByRole("button", { name: "3D model", exact: true }).click();
   const polygon = page.locator(".model-canvas polygon").first();
   await expect(polygon).toBeVisible();
@@ -349,9 +344,48 @@ test("3D model orbits, changes wall height, exports geometry, and returns to edi
   expect(obj).toContain("g wall");
   expect(obj).toContain("3.00000");
   expect(obj).not.toMatch(/NaN|Infinity/);
-  await page
-    .getByRole("button", { name: "Edit locations", exact: true })
-    .click();
-  await expect(page.locator(".map-vector")).toBeVisible();
-  await expect(page.locator(".map-pin")).toHaveCount(16);
+  await expect(
+    page.getByRole("button", { name: "Edit sensor locations", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "2D plan", exact: true }).click();
+  await expect(page.locator(".location-pin")).toHaveCount(16);
+});
+
+test("a new photo is compared with the previous one and the changes can be inspected", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Cameras", exact: true }).click();
+  const card = page.locator(".camera-card").first();
+  const take = card.getByRole("button", { name: "Take photo", exact: true });
+  await take.click();
+  await expect(page.locator(".photo-tile")).toHaveCount(1);
+  // The first photo of a camera has nothing to be compared with.
+  await expect(card.locator(".camera-changes")).toHaveCount(0);
+  await take.click();
+  await expect(page.locator(".photo-tile")).toHaveCount(2);
+  // The simulated object moved: gone from one place, new in another.
+  const chip = card.locator("button.camera-changes");
+  await expect(chip).toHaveText("2 possible changes");
+  await expect(card.locator(".photo-change")).toHaveCount(2);
+  await expect(page.locator(".photo-change-badge")).toHaveText("2");
+  // Every history photo still says which camera, where and when.
+  const tile = page.locator(".photo-tile").first();
+  await tile.scrollIntoViewIfNeeded();
+  await expect(tile.locator("strong")).toBeInViewport();
+  await expect(tile.locator("> span").last()).toBeInViewport();
+  await expect(tile.locator("> span").last()).toHaveText(/\d{4}-\d{2}-\d{2}/);
+  await chip.click();
+  const dialog = page.getByRole("dialog");
+  const compare = dialog.getByRole("group", { name: "Changes", exact: true });
+  await expect(compare).toContainText("2 possible changes");
+  // Outlines mark places; they carry no claim about what happened there.
+  await expect(dialog.locator(".photo-change")).toHaveCount(2);
+  await expect(dialog.locator(".photo-changes text")).toHaveCount(0);
+  // Outlines can be switched off, and the previous photo slid over this one.
+  await compare.getByRole("button", { name: "Highlight", exact: true }).click();
+  await expect(dialog.locator(".photo-change")).toHaveCount(0);
+  await expect(dialog.locator(".photo-before")).toHaveCount(0);
+  await compare.getByRole("slider").fill("50");
+  await expect(dialog.locator(".photo-before")).toBeVisible();
+  await expect(dialog.locator(".photo-divider")).toBeVisible();
 });

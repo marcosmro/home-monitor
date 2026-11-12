@@ -1,6 +1,6 @@
 import { useLanguage } from "./i18n";
 import { BudgetNotice } from "./BudgetNotice";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   captureProgress,
   isCamera,
@@ -14,6 +14,7 @@ import {
   type Preferences,
 } from "../../shared/model";
 import { madrid } from "../../shared/time";
+import { changeSummary, type PhotoChanges } from "../../shared/photo-changes";
 import { bridge } from "./bridge";
 import { Icon } from "./icons";
 
@@ -32,18 +33,75 @@ function readPhotoImage(photo: Photo) {
   return request;
 }
 
+// Photos saved before comparisons existed are compared once, on first view.
+const photoChanges = new WeakMap<Photo, Promise<PhotoChanges | null>>();
+/** How a photo differs from its camera's previous one; undefined while unknown. */
+export function usePhotoChanges(photo?: Photo) {
+  const [value, setValue] = useState(photo?.changes);
+  useEffect(() => {
+    setValue(photo?.changes);
+    if (!photo || photo.changes !== undefined) return;
+    let active = true;
+    let request = photoChanges.get(photo);
+    if (!request) {
+      request = bridge.photoChanges(photo.id);
+      photoChanges.set(photo, request);
+    }
+    request
+      .then((changes) => {
+        if (active) setValue(changes);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [photo]);
+  return value;
+}
+/** Whether a comparison found anything a person should look at. */
+export const hasChanges = (changes?: PhotoChanges | null) =>
+  !!changes && (changes.scene || changes.regions.length > 0);
+
 export function PhotoImage({
   photo,
   large = false,
   zoom = 1,
+  changes,
+  before,
+  reveal = 0,
+  onBeforeError,
 }: {
   photo: Photo;
   large?: boolean;
   zoom?: number;
+  /** Outlines where the photo differs from the previous one. */
+  changes?: PhotoChanges | null;
+  /** The previous photo, laid over this one from the left edge… */
+  before?: Photo;
+  /** …up to this fraction of the width (0 hides it, 1 covers everything). */
+  reveal?: number;
+  onBeforeError?: () => void;
 }) {
   const { t } = useLanguage();
   const [src, setSrc] = useState(""),
     [error, setError] = useState("");
+  const [size, setSize] = useState<{ width: number; height: number }>();
+  const [beforeSrc, setBeforeSrc] = useState("");
+  useEffect(() => {
+    let active = true;
+    setBeforeSrc("");
+    if (before)
+      readPhotoImage(before)
+        .then((value) => {
+          if (active) setBeforeSrc(value);
+        })
+        .catch(() => {
+          if (active) onBeforeError?.();
+        });
+    return () => {
+      active = false;
+    };
+  }, [before]);
   useEffect(() => {
     let active = true;
     setSrc("");
@@ -74,6 +132,12 @@ export function PhotoImage({
             setSrc("");
             setError("Photo could not be decoded");
           }}
+          onLoad={(e) =>
+            setSize({
+              width: e.currentTarget.naturalWidth,
+              height: e.currentTarget.naturalHeight,
+            })
+          }
           src={src}
           alt={t(
             "{0}, received {1} Madrid",
@@ -84,12 +148,79 @@ export function PhotoImage({
       ) : (
         <span>{error ? t(error) : t("Loading photo…")}</span>
       )}
+      {src && beforeSrc && reveal > 0 && (
+        <>
+          <img
+            className="photo-before"
+            src={beforeSrc}
+            alt=""
+            style={{ clipPath: `inset(0 ${(1 - reveal) * 100}% 0 0)` }}
+            onError={() => onBeforeError?.()}
+          />
+          {reveal < 1 && (
+            <i className="photo-divider" style={{ left: `${reveal * 100}%` }} />
+          )}
+        </>
+      )}
+      {src && size && changes && changes.regions.length > 0 && (
+        // Same box and fit as the image, so outlines sit on what they mark.
+        <svg
+          className="photo-changes"
+          viewBox={`0 0 ${size.width} ${size.height}`}
+          preserveAspectRatio="xMidYMid meet"
+          aria-hidden="true"
+        >
+          {changes.regions.map((r, i) => (
+            <rect
+              key={i}
+              className="photo-change"
+              x={r.x * size.width}
+              y={r.y * size.height}
+              width={r.w * size.width}
+              height={r.h * size.height}
+              rx={size.width / 160}
+            />
+          ))}
+        </svg>
+      )}
       {photo.demo && <span className="photo-demo">{t("Simulated photo")}</span>}
     </div>
   );
 }
+/** A thumbnail with its changes outlined, and optionally counted in a badge. */
+function ComparedPhoto({ photo, badge }: { photo: Photo; badge?: boolean }) {
+  const { t, language } = useLanguage();
+  const changes = usePhotoChanges(photo);
+  return (
+    <div className="compared-photo">
+      <PhotoImage photo={photo} changes={changes} />
+      {badge && hasChanges(changes) && (
+        <span
+          className="photo-change-badge"
+          title={changeSummary(changes!, language)}
+        >
+          {changes!.scene ? "!" : changes!.regions.length}
+        </span>
+      )}
+    </div>
+  );
+}
+/** One line under a camera's latest photo: what changed, opening the viewer. */
+function ChangeChip({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
+  const { t, language } = useLanguage();
+  const changes = usePhotoChanges(photo);
+  if (!changes) return null;
+  return hasChanges(changes) ? (
+    <button className="camera-changes has-changes" onClick={onOpen}>
+      <Icon name="layers" size={12} />
+      {changeSummary(changes, language)}
+    </button>
+  ) : (
+    <p className="camera-changes">{changeSummary(changes, language)}</p>
+  );
+}
 export function ZoomPhoto({ photo }: { photo: Photo }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [zoom, setZoom] = useState(1);
   const pan = useRef<HTMLDivElement>(null);
   const drag = useRef<{
@@ -99,8 +230,72 @@ export function ZoomPhoto({ photo }: { photo: Photo }) {
     top: number;
   } | null>(null);
   const adjust = (value: number) => setZoom(Math.max(1, Math.min(4, value)));
+  const changes = usePhotoChanges(photo);
+  const [marks, setMarks] = useState(true);
+  // Where the before/after divider sits, and whether "before" is held down.
+  const [reveal, setReveal] = useState(0);
+  const [held, setHeld] = useState(false);
+  const [beforeMissing, setBeforeMissing] = useState(false);
+  const before = useMemo<Photo | undefined>(
+    () =>
+      changes
+        ? {
+            ...photo,
+            id: changes.previousId,
+            receivedAt: changes.previousAt,
+            changes: null,
+          }
+        : undefined,
+    [photo, changes],
+  );
+  const comparing = held || reveal > 0;
   return (
     <>
+      {changes && (
+        <div className="photo-compare" role="group" aria-label={t("Changes")}>
+          <strong className={hasChanges(changes) ? "has-changes" : ""}>
+            {changeSummary(changes, language)}
+          </strong>
+          <span>
+            {t("since the photo of {0}", madrid(changes.previousAt, true))}
+          </span>
+          {changes.regions.length > 0 && (
+            <button aria-pressed={marks} onClick={() => setMarks(!marks)}>
+              {t("Highlight")}
+            </button>
+          )}
+          {!beforeMissing && (
+            <>
+              <label>
+                {t("Previous photo")}
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(reveal * 100)}
+                  aria-label={t("Slide the previous photo over this one")}
+                  onChange={(e) => setReveal(Number(e.target.value) / 100)}
+                />
+              </label>
+              <button
+                className="photo-hold"
+                aria-pressed={held}
+                title={t("Hold to see the previous photo")}
+                onPointerDown={() => setHeld(true)}
+                onPointerUp={() => setHeld(false)}
+                onPointerLeave={() => setHeld(false)}
+                onKeyDown={(e) => {
+                  if (e.key === " " || e.key === "Enter") setHeld(true);
+                }}
+                onKeyUp={() => setHeld(false)}
+                onBlur={() => setHeld(false)}
+              >
+                {t("Hold to flip")}
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <div className="photo-zoom-toolbar">
         <span>
           {zoom === 1
@@ -164,8 +359,23 @@ export function ZoomPhoto({ photo }: { photo: Photo }) {
           drag.current = null;
         }}
       >
-        <PhotoImage photo={photo} large zoom={zoom} />
+        <PhotoImage
+          photo={photo}
+          large
+          zoom={zoom}
+          changes={marks && !held ? changes : undefined}
+          before={comparing && !beforeMissing ? before : undefined}
+          reveal={held ? 1 : reveal}
+          onBeforeError={() => setBeforeMissing(true)}
+        />
       </div>
+      {changes && changes.regions.length > 0 && (
+        <p className="photo-compare-note">
+          {t(
+            "Compared on this computer with the previous photo from this camera. Outlines mark where the picture differs; they do not identify objects.",
+          )}
+        </p>
+      )}
     </>
   );
 }
@@ -203,7 +413,13 @@ export function Cameras({
     [filter, setFilter] = useState(initialCameraId || "all");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   useEffect(() => {
-    if (selected) viewer.current?.showModal();
+    if (!selected) return;
+    // Closing returns keyboard focus to the photo that opened the viewer.
+    const opener = document.activeElement as HTMLElement | null;
+    viewer.current?.showModal();
+    return () => {
+      if (opener?.isConnected) opener.focus();
+    };
   }, [selected]);
   async function reload() {
     const page = await bridge.photoLibrary();
@@ -403,7 +619,9 @@ export function Cameras({
                         "About {0} remaining · estimate, not upload progress",
                         timeLeft,
                       )
-                : t("No captures are retried automatically.")}
+                : t(
+                    "A camera that refuses a request is asked again, up to twice.",
+                  )}
             </span>
             <div
               className="capture-track"
@@ -465,7 +683,7 @@ export function Cameras({
                       displayDevice(d, prefs),
                     )}
                   >
-                    <PhotoImage photo={latest} />
+                    <ComparedPhoto photo={latest} />
                   </button>
                 ) : (
                   <div className="camera-empty">
@@ -493,6 +711,15 @@ export function Cameras({
                     · {madrid(latest.receivedAt, true)}
                   </p>
                 )}
+                {latest && (
+                  <ChangeChip
+                    photo={latest}
+                    onOpen={() => {
+                      setSelected(latest);
+                      setDeleteConfirm(false);
+                    }}
+                  />
+                )}
                 {onInspect && (
                   <button
                     className="camera-inspect-link"
@@ -508,7 +735,11 @@ export function Cameras({
                     {item
                       ? {
                           queued: t("Waiting"),
-                          capturing: t("Taking photo…"),
+                          capturing: t(
+                            (item.attempt ?? 1) > 1
+                              ? "Trying again…"
+                              : "Taking photo…",
+                          ),
                           saved: t("Saved locally"),
                           failed: t("Capture failed"),
                           unknown: t("Outcome unknown"),
@@ -600,7 +831,7 @@ export function Cameras({
                 setDeleteConfirm(false);
               }}
             >
-              <PhotoImage photo={p} />
+              <ComparedPhoto photo={p} badge />
               <strong>{p.cameraName}</strong>
               <span>{p.room}</span>
               <span>{madrid(p.receivedAt, true)}</span>
@@ -663,10 +894,11 @@ export function Cameras({
               </div>
               <button
                 autoFocus
+                className="icon-button"
                 onClick={() => setSelected(undefined)}
                 aria-label={t("Close photo")}
               >
-                ×
+                <Icon name="close" />
               </button>
             </div>
             {error && (

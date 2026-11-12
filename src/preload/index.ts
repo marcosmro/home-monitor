@@ -15,6 +15,7 @@ const bridge: Bridge = {
   cancelCapture: invoke("cancelCapture"),
   photoLibrary: invoke("photoLibrary"),
   photoImage: invoke("photoImage"),
+  photoChanges: invoke("photoChanges"),
   deletePhoto: invoke("deletePhoto"),
   exportPhoto: invoke("exportPhoto"),
   snapshot: invoke("snapshot"),

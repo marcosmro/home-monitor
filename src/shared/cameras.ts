@@ -1,4 +1,5 @@
 import type { Device } from "./model";
+import type { PhotoChanges } from "./photo-changes";
 export const isCamera = (d: Device) =>
   d.source === "cameras" || ["CameraPIR", "OutdoorCameraPIR"].includes(d.type);
 export interface Photo {
@@ -9,14 +10,38 @@ export interface Photo {
   receivedAt: string;
   bytes: number;
   demo: boolean;
+  /**
+   * How this photo differs from the same camera's previous one. Absent until
+   * compared; `null` when there was nothing to compare it with.
+   */
+  changes?: PhotoChanges | null;
 }
 export interface CaptureItem {
   cameraId: string;
   name: string;
   state: "queued" | "capturing" | "saved" | "failed" | "unknown" | "cancelled";
   message?: string;
+  /** Which try this is; above 1 after a transient failure was retried. */
+  attempt?: number;
   startedAt?: number;
   finishedAt?: number;
+}
+/**
+ * One line of the local capture log: what a single photo request came to.
+ * Never the image, credentials or addresses; only what explains a failure.
+ */
+export interface CaptureLogEntry {
+  at: string;
+  camera: string;
+  cameraId: string;
+  attempt: number;
+  outcome: "saved" | "retrying" | "failed" | "unknown";
+  /** Milliseconds from the request to its answer. */
+  ms: number;
+  /** HTTP status of a refusal; 0 when no complete response arrived. */
+  status?: number;
+  message?: string;
+  serverMessage?: string;
 }
 export interface CaptureJob {
   pauseUntil?: number;

@@ -309,7 +309,7 @@ test("floor-plan load errors offer an inline recovery action", async ({
   ).toBeVisible();
   await page.evaluate(() => localStorage.removeItem("demo-map-placements"));
   await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.locator(".location-plan")).toBeVisible();
+  await expect(page.locator(".house-plan-card")).toHaveCount(3);
   await expect(
     page.getByRole("button", { name: "Retry", exact: true }),
   ).toHaveCount(0);
@@ -332,6 +332,8 @@ test("floor plan fills the matching panel and ignores hover and passive focus", 
       ),
     )
     .toBeLessThan(2);
+  // With nothing selected the panel shows every floor; open the first one.
+  await page.locator(".house-plan-card").first().click();
   await expect
     .poll(
       async () => (await page.locator(".location-plan").boundingBox())!.height,
@@ -395,6 +397,8 @@ test("portrait floor plans use panel height and preserve their proportions", asy
     { snap: { ...demoSnapshot(), demo: false }, prefs: defaults, map },
   );
   await page.goto("/");
+  // With nothing selected the panel shows every floor; open the first one.
+  await page.locator(".house-plan-card").first().click();
   await expect
     .poll(
       async () =>
@@ -489,4 +493,112 @@ test("floor headings navigate the clean map panel by click and keyboard", async 
   await expect(
     page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toBeInViewport();
+});
+
+test("house row totals the sensors and opens every floor plan at a glance", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Start demo mode", exact: true })
+    .click();
+  const house = page.locator(".matrix-house-link");
+  await expect(house).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".matrix-house-row")).toContainText("48 sensors");
+  await expect(page.locator(".house-plan-card")).toHaveCount(3);
+  await page.locator(".house-plan-card").nth(1).click();
+  await expect(page.locator(".location-plan")).toHaveAttribute(
+    "data-plan-id",
+    "f1",
+  );
+  await page.getByRole("button", { name: "All floors", exact: true }).click();
+  await expect(page.locator(".house-plan-card")).toHaveCount(3);
+  await page.locator(".matrix-sensor").first().click();
+  await expect(house).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".location-plan")).toBeVisible();
+  await house.click();
+  await expect(page.locator(".house-plan-card")).toHaveCount(3);
+});
+
+test("floor plan cards carry the sensor list's floor names, order and counts", async ({
+  page,
+}) => {
+  // Like a real import: plan files with their own labels, an interior garage
+  // the alarm files under the basement but drawn on its own plan, and an
+  // exterior study that adds the 2D/3D switch.
+  const snap = { ...demoSnapshot(), demo: false };
+  for (const d of snap.devices)
+    if (d.roomId === "f2r0") {
+      d.room = "Indoor garage";
+      d.roomEs = "Garaje interior";
+    }
+  const map = demoMap();
+  const basement = map.plans.find((p) => p.id === "f2")!;
+  basement.label = "Planta semi-sótano";
+  map.plans[0].label = "Planta primera";
+  map.plans.push(
+    { ...basement, id: "garage", label: "Planta baja · garaje" },
+    {
+      ...basement,
+      id: "exterior",
+      label: "Exterior",
+      model: {
+        scene: "exterior",
+        pixelsPerMetre: 40,
+        defaultHeight: 2.5,
+        notes: [],
+        review: [],
+      },
+    },
+  );
+  const garage = map.rooms.find((r) => r.id === "f2r0")!;
+  garage.planId = "garage";
+  garage.matches[0].room.push("Indoor garage", "Garaje interior");
+  await page.addInitScript(
+    ({ snap, prefs, map }) => {
+      window.home = {
+        snapshot: async () => snap,
+        preferences: async () => prefs,
+        subscribe: () => () => {},
+        houseMap: async () => ({ ...map, placements: {} }),
+      } as unknown as typeof window.home;
+    },
+    { snap, prefs: defaults, map },
+  );
+  await page.goto("/");
+  const cards = page.locator(".house-plan-card");
+  await expect(cards).toHaveCount(4);
+  const floors = await page
+    .locator(".matrix-floor-divider:not(.matrix-house-row) th")
+    .evaluateAll((rows) =>
+      rows.map((row) => [
+        row.querySelector(".matrix-floor-link")!.textContent!.trim(),
+        row.querySelector("small")!.textContent!.trim(),
+      ]),
+    );
+  expect(floors.map(([name]) => name)).toContain("Garaje interior");
+  expect(
+    await cards.evaluateAll((items) =>
+      items.map((card) => [
+        card.querySelector("strong")!.textContent!.trim(),
+        card.querySelector("small")!.textContent!.trim().split(" · ")[0],
+      ]),
+    ),
+  ).toEqual(floors);
+  // The view switch sits in a header row clear of the cards.
+  const toolbar = (await page.locator(".location-view-switch").boundingBox())!;
+  const first = (await cards.first().boundingBox())!;
+  expect(first.y - (toolbar.y + toolbar.height)).toBeGreaterThanOrEqual(10);
+  // A floor of the list opens the plan its card shows.
+  await page
+    .getByRole("button", { name: "Show floor Garaje interior", exact: true })
+    .click();
+  await expect(page.locator(".location-plan")).toHaveAttribute(
+    "data-plan-id",
+    "garage",
+  );
+  await expect(page.locator(".location-plan")).toHaveAttribute(
+    "aria-label",
+    "Garaje interior",
+  );
 });

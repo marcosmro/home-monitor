@@ -1,12 +1,13 @@
 import { validTemperatureRange } from "../shared/temperature-scale";
 import { HouseMapStore } from "./house-map";
-import { PhotoStore, CameraController } from "./photos";
+import { PhotoStore, CameraController, CaptureLog } from "./photos";
 import {
   app,
   BrowserWindow,
   ipcMain,
   safeStorage,
   powerMonitor,
+  Notification,
   dialog,
   nativeImage,
   screen,
@@ -17,6 +18,13 @@ import { promises as fs } from "node:fs";
 import { SectorApi, type Meter } from "./api";
 import { Monitor } from "./service";
 import { defaults, type Preferences } from "../shared/model";
+import { PowerWatcher, powerNotification } from "../shared/power";
+import { inferredNotification, validOutageFile } from "../shared/outages";
+import {
+  THUMB_HEIGHT,
+  THUMB_WIDTH,
+  changesNotification,
+} from "../shared/photo-changes";
 let win: BrowserWindow | undefined;
 app.setName("Home Monitor");
 if (process.env.HOME_MONITOR_TEST_DATA)
@@ -63,6 +71,12 @@ function validatePreferences(p: Preferences) {
     (p.temperatureRange !== undefined &&
       !validTemperatureRange(p.temperatureRange)) ||
     (p.lastPanelId !== undefined && typeof p.lastPanelId !== "string") ||
+    (p.dismissedInferredCut !== undefined &&
+      (typeof p.dismissedInferredCut !== "string" ||
+        p.dismissedInferredCut.length > 200)) ||
+    (p.dismissedPower !== undefined &&
+      (typeof p.dismissedPower !== "string" ||
+        p.dismissedPower.length > 200)) ||
     (p.homeNames !== undefined &&
       (!p.homeNames ||
         typeof p.homeNames !== "object" ||
@@ -83,6 +97,19 @@ function validatePreferences(p: Preferences) {
         typeof a !== "object" ||
         Object.values(a).some((v) => typeof v !== "string" || v.length > 500),
     ) ||
+    (p.roomFloors !== undefined &&
+      (!p.roomFloors ||
+        typeof p.roomFloors !== "object" ||
+        Array.isArray(p.roomFloors) ||
+        Object.values(p.roomFloors).some(
+          (floor) => typeof floor !== "string" || floor.length > 500,
+        ))) ||
+    [p.floorOrder, p.roomOrder].some(
+      (order) =>
+        order !== undefined &&
+        (!Array.isArray(order) ||
+          order.some((key) => typeof key !== "string" || key.length > 500)),
+    ) ||
     JSON.stringify(p).length > 200000
   )
     throw new Error("Invalid display settings.");
@@ -100,33 +127,111 @@ app.whenReady().then(async () => {
       .then(() => write("request-budget.json", m))
       .catch(() => {});
   });
-  const monitor = new Monitor(api, (s) => win?.webContents.send("snapshot", s));
+  const powerWatcher = new PowerWatcher();
+  /** Shows a desktop notification worded for the saved home name/language. */
+  const notify = (
+    text: (
+      home: string,
+      language: "en" | "es",
+    ) => {
+      title: string;
+      body: string;
+    },
+  ) => {
+    if (!Notification.isSupported()) return;
+    const { panelId, name } = monitor.snap;
+    void read("preferences.json").then((p: Preferences | null) => {
+      const note = new Notification(
+        text(
+          p?.homeNames?.[panelId] || name,
+          p?.language === "es" ? "es" : "en",
+        ),
+      );
+      note.on("click", () => win?.show());
+      note.show();
+    });
+  };
+  const monitor: Monitor = new Monitor(api, (s) => {
+    win?.webContents.send("snapshot", s);
+    const power = powerWatcher.check(s);
+    if (power) notify((home, lang) => powerNotification(power, home, lang));
+  });
+  monitor.outageLog.data = validOutageFile(await read("power-cuts.json"));
+  monitor.outageLog.onChange = (data) =>
+    void write("power-cuts.json", data).catch(() => {});
+  monitor.outageLog.onEvent = (kind, outage) =>
+    notify((home, lang) => inferredNotification(kind, outage, home, lang));
   const mapStore = new HouseMapStore(
     join(app.getPath("userData"), "house-map"),
   );
   const mapScope = () =>
     `${monitor.snap.demo ? "demo" : "live"}:${monitor.snap.panelId}`;
-  const photoStore = new PhotoStore(join(app.getPath("userData"), "photos"));
-  const cameras = new CameraController(monitor, photoStore, async () => {
-    await new Promise((resolve) => setTimeout(resolve, 700));
-    // A clearly synthetic image; never a screenshot of the user's desktop.
-    const width = 640,
-      height = 360,
-      pixels = Buffer.alloc(width * height * 4);
-    for (let y = 0; y < height; y++)
-      for (let x = 0; x < width; x++) {
-        const n = (y * width + x) * 4,
-          line = x % 80 < 2 || y % 60 < 2;
-        pixels[n] = line ? 100 : 55;
-        pixels[n + 1] = line ? 150 : 78;
-        pixels[n + 2] = line ? 120 : 60;
-        pixels[n + 3] = 255;
+  const photoStore = new PhotoStore(
+    join(app.getPath("userData"), "photos"),
+    // Photos are compared as small thumbnails, decoded here and nowhere else.
+    (data) => {
+      const image = nativeImage.createFromBuffer(data);
+      if (image.isEmpty()) return undefined;
+      const small = image.resize({
+        width: THUMB_WIDTH,
+        height: THUMB_HEIGHT,
+        quality: "good",
+      });
+      const { width, height } = small.getSize();
+      const pixels = small.toBitmap();
+      if (pixels.length !== width * height * 4) return undefined;
+      // Bitmaps are BGRA; the comparison reads RGBA.
+      for (let i = 0; i < pixels.length; i += 4) {
+        const blue = pixels[i];
+        pixels[i] = pixels[i + 2];
+        pixels[i + 2] = blue;
       }
-    return nativeImage
-      .createFromBitmap(pixels, { width, height })
-      .toPNG()
-      .toString("base64");
-  });
+      return { width, height, data: pixels };
+    },
+  );
+  let demoSpots = 0;
+  const captureLog = new CaptureLog(
+    join(app.getPath("userData"), "capture-log.jsonl"),
+  );
+  const cameras = new CameraController(
+    monitor,
+    photoStore,
+    async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      // A clearly synthetic image; never a screenshot of the user's desktop.
+      const width = 640,
+        height = 360,
+        pixels = Buffer.alloc(width * height * 4),
+        spot = demoSpots++ % 4;
+      for (let y = 0; y < height; y++)
+        for (let x = 0; x < width; x++) {
+          const n = (y * width + x) * 4,
+            line = x % 80 < 2 || y % 60 < 2;
+          // One object, somewhere new each time, for the comparison to find.
+          const block =
+            x >= spot * 130 + 90 &&
+            x < spot * 130 + 146 &&
+            y >= 200 - (spot % 2) * 60 &&
+            y < 272 - (spot % 2) * 60;
+          pixels[n] = block ? 95 : line ? 100 : 55;
+          pixels[n + 1] = block ? 178 : line ? 150 : 78;
+          pixels[n + 2] = block ? 217 : line ? 120 : 60;
+          pixels[n + 3] = 255;
+        }
+      return nativeImage
+        .createFromBitmap(pixels, { width, height })
+        .toPNG()
+        .toString("base64");
+    },
+    undefined,
+    undefined,
+    (entry) => void captureLog.append(entry).catch(() => {}),
+    (photos) => {
+      // One note per batch, and only when a photo differs from its previous.
+      if (changesNotification(photos, ""))
+        notify((home, lang) => changesNotification(photos, home, lang)!);
+    },
+  );
   const dev = process.env.ELECTRON_RENDERER_URL;
   const renderer = join(import.meta.dirname, "../renderer/index.html");
   const allowed = dev || pathToFileURL(renderer).href;
@@ -192,6 +297,8 @@ app.whenReady().then(async () => {
     photoLibrary: (offset, cameraId) =>
       photoStore.list(cameras.scope(), offset, cameraId),
     photoImage: (id) => photoStore.image(cameras.scope(), id),
+    photoChanges: async (id) =>
+      (await photoStore.changes(cameras.scope(), id)) ?? null,
     deletePhoto: (id) => photoStore.remove(cameras.scope(), id),
     exportPhoto: async (id) => {
       const data = await photoStore.image(cameras.scope(), id);

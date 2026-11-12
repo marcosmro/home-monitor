@@ -1,5 +1,11 @@
 import { isCamera } from "./cameras";
-import type { Device } from "./model";
+import {
+  floorSections,
+  isInteriorGarage,
+  location,
+  type Device,
+  type Preferences,
+} from "./model";
 export type PlanPoint = [number, number];
 export interface PlanDrawing {
   bounds: [number, number, number, number];
@@ -147,6 +153,122 @@ export function suggestPlacements(
     };
   }
   return result;
+}
+/**
+ * Rooms drawn on a different plan than most of the floor the alarm files them
+ * under (an attic bedroom filed under the first floor). Keyed like `roomKey`,
+ * valued with that plan's label, so the room stands as its own floor section.
+ */
+export function planFloors(
+  devices: Device[],
+  project: MapProject,
+): Record<string, string> {
+  const places = suggestPlacements(
+    devices.filter((d) => !isCamera(d)),
+    { ...project, cameraHints: [] },
+  );
+  const floors = new Map<string, Map<string, string>>();
+  for (const d of devices) {
+    const planId = places[d.id]?.planId;
+    if (!planId || isInteriorGarage(d)) continue;
+    const rooms = floors.get(d.floorId) || new Map<string, string>();
+    rooms.set(JSON.stringify([d.floorId, d.roomId]), planId);
+    floors.set(d.floorId, rooms);
+  }
+  const result: Record<string, string> = {};
+  for (const rooms of floors.values()) {
+    const counts = new Map<string, number>();
+    for (const planId of rooms.values())
+      counts.set(planId, (counts.get(planId) || 0) + 1);
+    const top = Math.max(...counts.values());
+    // No clear main plan: leave the floor as the alarm reports it.
+    if ([...counts.values()].filter((n) => n === top).length !== 1) continue;
+    for (const [key, planId] of rooms)
+      if (counts.get(planId) !== top) {
+        const label = project.plans.find((p) => p.id === planId)?.label;
+        if (label) result[key] = label;
+      }
+  }
+  return result;
+}
+export const isExteriorPlan = (plan: MapPlan) =>
+  plan.model?.scene === "exterior";
+export interface FloorPlan {
+  plan: MapPlan;
+  /** The sensor-list floor sections drawn on this plan, in list order. */
+  floors: string[];
+  /** Those sections' names, or the plan's own label when it holds none. */
+  title: string;
+  /** Every sensor of those sections, placed on the plan or not. */
+  devices: Device[];
+}
+/**
+ * The interior plans named, ordered and counted like the sensor list. Each
+ * floor section belongs to the plan most of its sensors are placed on, so a
+ * plan file's own label ("Planta semi-sótano") never contradicts the list
+ * ("Sótano"), and a plan that draws two floors carries both names.
+ */
+export function floorPlans(
+  project: MapProject,
+  devices: Device[],
+  places: Record<string, MapPlacement | null | undefined>,
+  prefs: Preferences,
+): FloorPlan[] {
+  const plans = project.plans.filter((p) => !isExteriorPlan(p));
+  const result = plans.map((plan) => ({
+    plan,
+    floors: [] as string[],
+    title: plan.label,
+    devices: [] as Device[],
+  }));
+  const order = floorSections(devices, prefs);
+  for (const floor of order) {
+    const members = devices.filter((d) => location(d, prefs).floor === floor);
+    let best: (typeof result)[number] | undefined,
+      top = 0;
+    for (const entry of result) {
+      const n = members.filter(
+        (d) => places[d.id]?.planId === entry.plan.id,
+      ).length;
+      if (n > top) [best, top] = [entry, n];
+    }
+    if (!best) continue;
+    best.floors.push(floor);
+    best.devices.push(...members);
+  }
+  for (const entry of result)
+    if (entry.floors.length) entry.title = entry.floors.join(" · ");
+  // Plans follow the list's floor order; ones without sensors go last.
+  const rank = (e: FloorPlan) =>
+    e.floors.length ? order.indexOf(e.floors[0]) : order.length;
+  return result.sort((a, b) => rank(a) - rank(b));
+}
+/**
+ * The grid (columns by rows) that draws a set of cards largest in a box:
+ * every arrangement is tried and the one giving the drawings the biggest
+ * common scale wins, so four portrait plans in a tall panel go 2 by 2 and
+ * in a wide, short one stay in a row. `chrome` is the part of each card that
+ * is not drawing (padding and caption). Undefined when even the best
+ * arrangement leaves a drawing under `minSide` tall; the cards then scroll.
+ */
+export function bestGrid(
+  sizes: [number, number][],
+  box: { width: number; height: number },
+  { gap = 12, chrome = [22, 66], minSide = 110 } = {},
+) {
+  let best: { cols: number; rows: number } | undefined,
+    top = 0;
+  for (let cols = 1; cols <= sizes.length; cols++) {
+    const rows = Math.ceil(sizes.length / cols);
+    const w = (box.width - gap * (cols - 1)) / cols - chrome[0],
+      h = (box.height - gap * (rows - 1)) / rows - chrome[1];
+    if (w <= 0 || h < minSide) continue;
+    const scale = Math.min(
+      ...sizes.map(([sw, sh]) => Math.min(w / sw, h / sh)),
+    );
+    if (scale > top) [best, top] = [{ cols, rows }, scale];
+  }
+  return best;
 }
 export function validatePlacement(
   value: MapPlacement | null,

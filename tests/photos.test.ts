@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PhotoStore, CameraController } from "../src/main/photos";
+import { PhotoStore, CameraController, CaptureLog } from "../src/main/photos";
 import { Monitor } from "../src/main/service";
-import { SectorApi, ApiError, CaptureOutcomeUnknown } from "../src/main/api";
+import {
+  SectorApi,
+  ApiError,
+  CaptureOutcomeUnknown,
+  EmptyCapture,
+} from "../src/main/api";
 const png =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=";
 const dirs: string[] = [];
@@ -142,7 +147,7 @@ describe("sequential capture queue", () => {
       undefined,
       true,
       false,
-      120000,
+      180000,
     );
     request.mockRejectedValue(new ApiError("timeout"));
     await expect(m.captureCamera(m.snap.devices[3])).rejects.toThrow(
@@ -191,7 +196,7 @@ it("uses the documented legacy camera ID, never a guessed serial", async () => {
     undefined,
     true,
     false,
-    120000,
+    180000,
   );
   await expect(
     m.captureCamera({ ...d, legacyCameraId: undefined }),
@@ -219,6 +224,63 @@ it("continues after a camera-specific 405 without repeating that camera", async 
   expect((await s.list(c.scope())).total).toBe(2);
 });
 
+it("retries a camera that refuses its first request, then carries on", async () => {
+  const m = monitor(),
+    s = await store();
+  const capture = vi
+    .fn()
+    .mockRejectedValueOnce(new ApiError("Not acceptable", 406))
+    .mockResolvedValueOnce(png)
+    .mockRejectedValueOnce(new EmptyCapture("No photo"))
+    .mockResolvedValueOnce(png);
+  const c = new CameraController(m, s, capture);
+  await c.start(["demo-3", "demo-7"]);
+  await vi.waitFor(() => expect(c.state().running).toBe(false));
+  expect(capture).toHaveBeenCalledTimes(4);
+  expect(c.state().items.map((i) => [i.state, i.attempt, i.message])).toEqual([
+    ["saved", 2, undefined],
+    ["saved", 2, undefined],
+  ]);
+  expect((await s.list(c.scope())).total).toBe(2);
+});
+
+it("gives up on a camera after its retries and still photographs the rest", async () => {
+  const m = monitor(),
+    s = await store();
+  const capture = vi
+    .fn()
+    .mockRejectedValueOnce(new ApiError("Busy", 406))
+    .mockRejectedValueOnce(new ApiError("Busy", 406))
+    .mockRejectedValueOnce(new ApiError("Still busy", 406))
+    .mockResolvedValueOnce(png);
+  const c = new CameraController(m, s, capture);
+  await c.start(["demo-3", "demo-7"]);
+  await vi.waitFor(() => expect(c.state().running).toBe(false));
+  expect(capture).toHaveBeenCalledTimes(4);
+  expect(c.state().items.map((i) => [i.state, i.message])).toEqual([
+    ["failed", "Still busy"],
+    ["saved", undefined],
+  ]);
+});
+
+it("never retries a timeout, an authentication error or the request budget", async () => {
+  for (const error of [
+    new CaptureOutcomeUnknown("Unknown"),
+    new ApiError("No response"),
+    new ApiError("Unauthorized", 401),
+    new ApiError("Budget", 429),
+  ]) {
+    const m = monitor(),
+      s = await store(),
+      capture = vi.fn().mockRejectedValue(error);
+    const c = new CameraController(m, s, capture);
+    await c.start(["demo-3", "demo-7"]);
+    await vi.waitFor(() => expect(c.state().running).toBe(false));
+    expect(capture).toHaveBeenCalledTimes(1);
+    expect(c.state().items[1].state).toBe("cancelled");
+  }
+});
+
 it("preserves capture error explanations and allowed methods without retrying", async () => {
   const fetcher = vi.fn().mockResolvedValue(
     new Response(JSON.stringify({ detail: "camera_is_busy" }), {
@@ -237,7 +299,7 @@ it("preserves capture error explanations and allowed methods without retrying", 
       undefined,
       false,
       false,
-      120000,
+      180000,
     ),
   ).rejects.toMatchObject({
     status: 405,
@@ -350,4 +412,57 @@ it("filters a camera's library before pagination and preserves account isolation
   await expect(s.list("house", 0, {} as string)).rejects.toThrow(
     "camera identifier",
   );
+});
+
+it("logs every live attempt with its status, and keeps the log short and private", async () => {
+  const m = monitor(),
+    s = await store();
+  m.snap.demo = false;
+  const devices = m.snap.devices.filter((d) => d.type === "CameraPIR");
+  vi.spyOn(m, "prepareCameras").mockResolvedValue(devices.slice(0, 2));
+  vi.spyOn(m, "captureCamera")
+    .mockRejectedValueOnce(
+      new ApiError("Refused", 406, { serverMessage: "camera_is_busy" }),
+    )
+    .mockResolvedValueOnce(png)
+    .mockRejectedValueOnce(new CaptureOutcomeUnknown("No response"));
+  const path = join(dirs[0], "logs", "capture-log.jsonl"),
+    log = new CaptureLog(path, 2);
+  const writes: Promise<void>[] = [];
+  const c = new CameraController(m, s, vi.fn(), 0, 2, (entry) =>
+    writes.push(log.append(entry)),
+  );
+  await c.start(devices.slice(0, 2).map((d) => d.id));
+  await vi.waitFor(() => expect(c.state().running).toBe(false));
+  await Promise.all(writes);
+  expect(writes).toHaveLength(3);
+  const lines = (await readFile(path, "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  // Only the newest two of the three attempts are kept.
+  expect(lines).toMatchObject([
+    { cameraId: devices[0].id, attempt: 2, outcome: "saved" },
+    { cameraId: devices[1].id, attempt: 1, outcome: "unknown" },
+  ]);
+  expect(lines[0]).not.toHaveProperty("status");
+  expect((await stat(path)).mode & 0o077).toBe(0);
+  // The refusal that was dropped carried the status and the server's words.
+  const all: unknown[] = [];
+  const again = new CameraController(m, s, vi.fn(), 0, 0, (e) => all.push(e));
+  vi.mocked(m.prepareCameras).mockResolvedValue(devices.slice(0, 1));
+  vi.mocked(m.captureCamera).mockRejectedValueOnce(
+    new ApiError("Refused", 406, { serverMessage: "camera_is_busy" }),
+  );
+  await again.start([devices[0].id]);
+  await vi.waitFor(() => expect(again.state().running).toBe(false));
+  expect(all).toMatchObject([
+    {
+      attempt: 1,
+      outcome: "failed",
+      status: 406,
+      message: "Refused",
+      serverMessage: "camera_is_busy",
+    },
+  ]);
 });

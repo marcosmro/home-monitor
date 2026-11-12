@@ -10,9 +10,12 @@ test.beforeEach(async ({ page }) => {
 test("icon navigation explains itself on keyboard focus and Escape dismisses the tooltip", async ({
   page,
 }) => {
-  const map = page.getByRole("button", { name: "House map", exact: true });
+  await expect(
+    page.getByRole("button", { name: "House map", exact: true }),
+  ).toHaveCount(0);
+  const map = page.getByRole("button", { name: "Cameras", exact: true });
   await map.focus();
-  await expect(page.getByRole("tooltip")).toHaveText("House map");
+  await expect(page.getByRole("tooltip")).toHaveText("Cameras");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await expect(map).toBeFocused();
@@ -51,26 +54,31 @@ test("selected sensor title stays beside its icon without squeezing the details"
   await expect(panel.locator(".sensor-focus-stats")).toBeInViewport();
 });
 
-test("floor-plan edit shortcut opens placement editing and returns to the panel", async ({
+test("floor-plan edit control edits in place and keeps the plan", async ({
   page,
 }) => {
+  // With nothing selected the panel shows every floor; open the first one.
+  await page.locator(".house-plan-card").first().click();
   await page.locator(".location-pin").first().click();
   const planId = await page
     .locator(".location-plan")
     .getAttribute("data-plan-id");
-  await page
-    .getByRole("button", { name: "Edit sensor locations", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Finish editing", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".house-map")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Finish editing", exact: true })
-    .click();
+  const edit = page.getByRole("button", {
+    name: "Edit sensor locations",
+    exact: true,
+  });
+  await edit.click();
+  await expect(edit).toHaveAttribute("aria-pressed", "true");
+  const editor = page.getByRole("region", { name: "Edit sensor locations" });
+  await expect(editor).toBeVisible();
   await expect(
     page.getByRole("tab", { name: "Sensor", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
+  await page
+    .getByRole("button", { name: "Finish editing", exact: true })
+    .click();
+  await expect(editor).toHaveCount(0);
+  await expect(edit).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator(".location-plan")).toHaveAttribute(
     "data-plan-id",
     planId!,
@@ -80,6 +88,8 @@ test("floor-plan edit shortcut opens placement editing and returns to the panel"
 test("temperature layer colors rooms and can be switched off", async ({
   page,
 }) => {
+  // With nothing selected the panel shows every floor; open the first one.
+  await page.locator(".house-plan-card").first().click();
   const toggle = page.getByRole("button", {
     name: "Temperature layer",
     exact: true,

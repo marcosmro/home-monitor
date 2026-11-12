@@ -1,5 +1,11 @@
 import { demoMap, demoMapImage } from "../../shared/demo-map";
 import { validatePlacement } from "../../shared/house-map";
+import {
+  CHANGES_VERSION,
+  THUMB_HEIGHT,
+  THUMB_WIDTH,
+  compareThumbs,
+} from "../../shared/photo-changes";
 import type { CaptureJob, Photo } from "../../shared/cameras";
 import type { Bridge, Preferences } from "../../shared/model";
 import { defaults } from "../../shared/model";
@@ -22,6 +28,24 @@ const unavailable = async (): Promise<never> => {
   );
 };
 const demoPhotos: Photo[] = [];
+let demoSpots = 0;
+/** A photo as the small thumbnail the comparison reads, drawn by the browser. */
+async function thumb(src: string) {
+  const image = new Image();
+  image.src = src;
+  try {
+    await image.decode();
+  } catch {
+    return undefined;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = THUMB_WIDTH;
+  canvas.height = THUMB_HEIGHT;
+  const context = canvas.getContext("2d");
+  if (!context) return undefined;
+  context.drawImage(image, 0, 0, THUMB_WIDTH, THUMB_HEIGHT);
+  return context.getImageData(0, 0, THUMB_WIDTH, THUMB_HEIGHT);
+}
 const demoPhotoImages = new Map<string, string>();
 let demoJob: CaptureJob = {
   running: false,
@@ -66,12 +90,31 @@ const browser: Bridge = {
           demoJob.revision++;
           await new Promise((resolve) => setTimeout(resolve, 500));
           const id = crypto.randomUUID();
-          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#253d34"/><path d="M0 270L220 110 440 270 540 180 640 270" fill="none" stroke="#749889" stroke-width="2"/><text x="32" y="45" fill="#d8e8df" font-family="sans-serif" font-size="18">DEMO · Simulated photo</text></svg>`;
+          // Each simulated photo holds one object in a new place, so the
+          // comparison with the previous photo has something to find.
+          const spot = demoSpots++ % 4;
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#253d34"/><path d="M0 270L220 110 440 270 540 180 640 270" fill="none" stroke="#749889" stroke-width="2"/><rect x="${90 + spot * 130}" y="${200 - (spot % 2) * 60}" width="56" height="72" rx="6" fill="#d9b25f"/><text x="32" y="45" fill="#d8e8df" font-family="sans-serif" font-size="18">DEMO · Simulated photo</text></svg>`;
           demoPhotoImages.set(
             id,
             `data:image/svg+xml;base64,${btoa(String.fromCharCode(...new TextEncoder().encode(svg)))}`,
           );
+          const previous = demoPhotos.find((p) => p.cameraId === item.cameraId);
+          const [before, after] = await Promise.all(
+            [
+              previous && demoPhotoImages.get(previous.id),
+              demoPhotoImages.get(id),
+            ].map((image) => (image ? thumb(image) : undefined)),
+          );
           demoPhotos.unshift({
+            changes:
+              previous && before && after
+                ? {
+                    version: CHANGES_VERSION,
+                    previousId: previous.id,
+                    previousAt: previous.receivedAt,
+                    ...compareThumbs(before, after),
+                  }
+                : null,
             id,
             cameraId: item.cameraId,
             cameraName: item.name,
@@ -111,6 +154,8 @@ const browser: Bridge = {
     if (!image) throw new Error("Photo not found.");
     return image;
   },
+  photoChanges: async (id) =>
+    demoPhotos.find((p) => p.id === id)?.changes ?? null,
   deletePhoto: async (id) => {
     const i = demoPhotos.findIndex((p) => p.id === id);
     if (i >= 0) demoPhotos.splice(i, 1);
