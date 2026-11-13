@@ -94,6 +94,10 @@ Added mocked checks for success → 405 → success without repeating a camera, 
 
 A subsequent user screenshot showed a successful new photo, 405 rejections including a camera with an older saved photo, an incomplete response, and a skipped camera. This does not establish a camera-specific method mismatch. Added a conservative 10-second pause between live batch requests (not a documented provider requirement), cancelable during the pause, with the pause included in estimates. Unknown outcomes stop pending captures and are labeled separately from definitive failures; summaries include skipped cameras. Cached thumbnails show their saved timestamp. Nested JSON error strings are decoded for readability. Tests cover pacing/cancellation, unknown-outcome stopping, error decoding and pause estimates. No live camera calls were made; the pause is not a verified fix for the server's 405 response.
 
+## Panel-busy 405 retry
+
+HTTP 405 on a capture is now retried like other complete refusals instead of being recorded as a permanent rejection. Mocked checks cover success → 405 → success on the same camera (second attempt saved) and a 405 that outlasts its retries while the remaining cameras still run. No live photos were taken to verify this; the behavior against the real panel is unconfirmed until the next live batch.
+
 ## Editable house map
 
 99 core tests pass, including automatic room/window suggestions, ambiguous matches, invalid coordinates and cross-plan room rejection, concurrent placement writes, removal persistence, and property isolation. The browser map scenario covers selecting a suggested marker without accepting it accidentally, click placement, dragging and save/reload/removal. The existing 12 browser scenarios also pass. Type checking and production build pass.

@@ -324,7 +324,7 @@ export class Monitor {
     if (d.cameraRoute === "legacy" && !d.legacyCameraId)
       throw new Error("Legacy camera has no documented capture identifier.");
     // This GET triggers a physical action: never retry after 401 or a timeout.
-    // The queue repeats it only after a complete, definite refusal.
+    // The queue repeats it only after a complete, definite refusal (405 = busy).
     try {
       const raw = await this.api.request(
         d.cameraRoute === "legacy" ? legacy : modern,
@@ -342,7 +342,7 @@ export class Monitor {
         const explanation = error.details?.serverMessage;
         const allowed = error.details?.allowedMethods?.join(", ");
         throw new ApiError(
-          `This camera rejected the ${d.cameraRoute === "legacy" ? "legacy" : "modern"} GET capture request (405). ${explanation ? `Sector Alarm: ${explanation}. ` : "The server supplied no explanation. "}${allowed ? `Allowed methods reported by server: ${allowed}. ` : ""}No retry was sent; other cameras can continue.`,
+          `The panel refused this ${d.cameraRoute === "legacy" ? "legacy" : "modern"} photo request (405), which usually means it was busy. ${explanation ? `Sector Alarm: ${explanation}. ` : "The server supplied no explanation. "}${allowed ? `Allowed methods reported by server: ${allowed}. ` : ""}No photo was taken; try this camera again in a moment.`,
           405,
           error.details,
         );

@@ -199,15 +199,17 @@ export class CaptureLog {
 /**
  * A capture failure worth repeating: the server answered in full and refused
  * this one attempt (a camera that is still waking up answers 4xx/5xx, or with
- * no photo), so nothing was taken and asking again is safe. Never a timeout
- * (the camera may still be working), an authentication or permission error,
- * the request budget, or a method rejection, which will not change.
+ * no photo), so nothing was taken and asking again is safe. That includes 405:
+ * Sector Alarm answers it within a second while the panel is busy, and the
+ * same camera accepts the same request moments later. Never a timeout (the
+ * camera may still be working), an authentication or permission error, or the
+ * request budget.
  */
 export const isTransientCapture = (error: unknown) =>
   error instanceof EmptyCapture ||
   (error instanceof ApiError &&
     error.status >= 400 &&
-    ![401, 403, 405, 429].includes(error.status));
+    ![401, 403, 429].includes(error.status));
 
 export class CameraController {
   private job: CaptureJob = {
@@ -353,14 +355,10 @@ export class CameraController {
                 item.state =
                   error instanceof CaptureOutcomeUnknown ? "unknown" : "failed";
                 item.message = (error as Error).message;
-                // A refusal of this one camera (a method rejection, or a
-                // transient error that outlasted its retries) is recorded and
-                // the remaining cameras still run. Anything else stops the batch.
-                if (
-                  !transient &&
-                  !(error instanceof ApiError && error.status === 405)
-                )
-                  this.job.stopping = true;
+                // A refusal of this one camera (a transient error that
+                // outlasted its retries) is recorded and the remaining
+                // cameras still run. Anything else stops the batch.
+                if (!transient) this.job.stopping = true;
               }
               break;
             }

@@ -204,13 +204,36 @@ it("uses the documented legacy camera ID, never a guessed serial", async () => {
   expect(request).toHaveBeenCalledTimes(1);
 });
 
-it("continues after a camera-specific 405 without repeating that camera", async () => {
+it("asks a camera again after a panel-busy 405 and saves its photo", async () => {
   const m = monitor(),
     s = await store();
   const capture = vi
     .fn()
     .mockResolvedValueOnce(png)
-    .mockRejectedValueOnce(new ApiError("Camera rejected capture", 405))
+    .mockRejectedValueOnce(new ApiError("Panel busy", 405))
+    .mockResolvedValueOnce(png)
+    .mockResolvedValueOnce(png);
+  const c = new CameraController(m, s, capture);
+  await c.start(["demo-3", "demo-7", "demo-11"]);
+  await vi.waitFor(() => expect(c.state().running).toBe(false));
+  expect(c.state().items.map((i) => [i.state, i.attempt])).toEqual([
+    ["saved", 1],
+    ["saved", 2],
+    ["saved", 1],
+  ]);
+  expect(capture).toHaveBeenCalledTimes(4);
+  expect((await s.list(c.scope())).total).toBe(3);
+});
+
+it("continues with the other cameras when a 405 outlasts its retries", async () => {
+  const m = monitor(),
+    s = await store();
+  const capture = vi
+    .fn()
+    .mockResolvedValueOnce(png)
+    .mockRejectedValueOnce(new ApiError("Panel busy", 405))
+    .mockRejectedValueOnce(new ApiError("Panel busy", 405))
+    .mockRejectedValueOnce(new ApiError("Panel busy", 405))
     .mockResolvedValueOnce(png);
   const c = new CameraController(m, s, capture);
   await c.start(["demo-3", "demo-7", "demo-11"]);
@@ -220,7 +243,7 @@ it("continues after a camera-specific 405 without repeating that camera", async 
     "failed",
     "saved",
   ]);
-  expect(capture).toHaveBeenCalledTimes(3);
+  expect(capture).toHaveBeenCalledTimes(5);
   expect((await s.list(c.scope())).total).toBe(2);
 });
 
