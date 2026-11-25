@@ -2,6 +2,8 @@ import type { Device, Area, Mode, Event } from "./model";
 import { intrusionOutcome } from "./model";
 import { PLACE_NAMES, COMPONENT_NAMES } from "./places";
 import { finiteTemperature } from "./climate";
+import { activityAction } from "./activity-identity";
+import { plugEventReference } from "./smart-plugs";
 import { instant } from "./time";
 type Obj = Record<string, any>;
 export const obj = (x: unknown): Obj =>
@@ -335,14 +337,20 @@ export function logs(raw: unknown, devices: Device[] = []): Event[] {
     throw new Error("The activity response was not recognized.");
   return r.Records.map((e: any, n: number) => {
     const info = obj(e.SensorInformation);
-    const ref = sensorReference(
-      info.DeviceType,
-      mountType(info.MountType),
-      indexNumber(info.MountIndex),
-      info.SectionKey,
-      info.PlaceKey,
-      indexNumber(info.PlaceIndex),
-    );
+    const type = str(e.EventType, "unknown");
+    const action = activityAction({ type });
+    // Output records carry the inventory label in the API's LockName field.
+    const ref =
+      action === "plug-on" || action === "plug-off"
+        ? plugEventReference(e.LockName)
+        : sensorReference(
+            info.DeviceType,
+            mountType(info.MountType),
+            indexNumber(info.MountIndex),
+            info.SectionKey,
+            info.PlaceKey,
+            indexNumber(info.PlaceIndex),
+          );
     const matches = ref
       ? new Set(
           devices.filter((d) => d.eventReference === ref).map((d) => d.id),
@@ -353,10 +361,14 @@ export function logs(raw: unknown, devices: Device[] = []): Event[] {
       areaName: str(obj(e.AreaInfo).AreaName) || undefined,
       deviceId: matches.size === 1 ? matches.values().next().value : undefined,
       id: `${e.Time}-${e.EventType}-${n}`,
-      type: str(e.EventType, "unknown"),
+      type,
       description:
         intrusionOutcome(str(e.EventType)) ||
-        descriptions[str(e.EventType).toLowerCase().replace(/[-_\s]/g, "")] ||
+        descriptions[
+          str(e.EventType)
+            .toLowerCase()
+            .replace(/[-_\s]/g, "")
+        ] ||
         str(e.EventType, "Unrecognized event"),
       time: instant(e.Time),
       localTime:

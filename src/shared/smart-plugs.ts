@@ -1,5 +1,10 @@
 import type { Device } from "./model";
 
+export function plugEventReference(label: unknown): string | undefined {
+  if (typeof label !== "string" || !label.trim()) return undefined;
+  return "plug-label:" + label.trim().normalize("NFC").toLowerCase();
+}
+
 /** Keep slot IDs separate from sensor IDs; neither labels nor slots imply a room. */
 export function smartPlugs(raw: unknown, fetchedAt: string): Device[] {
   if (
@@ -17,6 +22,7 @@ export function smartPlugs(raw: unknown, fetchedAt: string): Device[] {
       original:
         typeof p.Label === "string" && p.Label ? p.Label : `Smart plug ${p.Id}`,
       type: "SmartPlug",
+      eventReference: plugEventReference(p.Label),
       floorId: "unassigned",
       floor: "Unassigned",
       floorEs: "Sin asignar",

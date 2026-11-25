@@ -26,6 +26,7 @@ const bridge: Bridge = {
   savedLogin: invoke("savedLogin"),
   select: invoke("select"),
   logout: invoke("logout"),
+  setPlugPower: invoke("setPlugPower"),
   command: invoke("command"),
   reconcile: invoke("reconcile"),
   readOnly: invoke("readOnly"),

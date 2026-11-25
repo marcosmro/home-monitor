@@ -212,31 +212,34 @@ export class Monitor {
           this.snap.keyTagPeople = [];
         }
       }
-      const previousOrder = new Map(this.snap.devices.map((d, i) => [d.id, i]));
-      this.snap.devices = mergeDevices(
-        this.contacts.map((d) => ({
-          ...d,
-          stale: !!this.snap.warnings.contacts,
-        })),
-        [...this.telemetry, ...Object.values(this.extras).flat()].map((d) => ({
-          ...d,
-          stale: !!this.snap.warnings[d.source],
-          temperatureStale:
-            d.temperature !== undefined
-              ? !!this.snap.warnings[d.source]
-              : undefined,
-        })),
-      );
-      this.snap.devices.sort(
-        (a, b) =>
-          (previousOrder.get(a.id) ?? Infinity) -
-          (previousOrder.get(b.id) ?? Infinity),
-      );
+      this.updateDevices();
       this.snap.inferredOutages = this.outageLog.update(this.snap);
       return this.publish();
     } finally {
       this.busy = false;
     }
+  }
+  private updateDevices() {
+    const previousOrder = new Map(this.snap.devices.map((d, i) => [d.id, i]));
+    this.snap.devices = mergeDevices(
+      this.contacts.map((d) => ({
+        ...d,
+        stale: !!this.snap.warnings.contacts,
+      })),
+      [...this.telemetry, ...Object.values(this.extras).flat()].map((d) => ({
+        ...d,
+        stale: !!this.snap.warnings[d.source],
+        temperatureStale:
+          d.temperature !== undefined
+            ? !!this.snap.warnings[d.source]
+            : undefined,
+      })),
+    );
+    this.snap.devices.sort(
+      (a, b) =>
+        (previousOrder.get(a.id) ?? Infinity) -
+        (previousOrder.get(b.id) ?? Infinity),
+    );
   }
   private async readState() {
     const id = encodeURIComponent(this.snap.panelId);
@@ -364,6 +367,55 @@ export class Monitor {
     if (typeof value !== "boolean") throw new Error("Invalid setting");
     this.snap.readOnly = value;
     return this.publish();
+  }
+  async setPlugPower(panel: string, id: string, power: "on" | "off") {
+    if (this.busy || this.selecting || this.cameraBusy || this.gate.blocked)
+      throw new Error("Wait for the current operation.");
+    if (this.snap.readOnly)
+      throw new Error("Enable live controls in connection settings first.");
+    const plug = this.snap.devices.find(
+      (d) => d.id === id && d.source === "smartplugs",
+    );
+    const slot = plug?.id.slice("smartplug:".length);
+    if (
+      this.snap.demo ||
+      panel !== this.snap.panelId ||
+      !this.inventory ||
+      !plug ||
+      !id.startsWith("smartplug:") ||
+      !slot ||
+      !["on", "off"].includes(power)
+    )
+      throw new Error("Invalid plug command.");
+    if (plug.offline || this.snap.online === false)
+      throw new Error("The plug is offline.");
+    this.busy = true;
+    try {
+      try {
+        await this.api.setPlugPower(panel, slot, power);
+      } finally {
+        // A lost response may still mean the switch operated. Read back once.
+        delete this.lastAttempt.events;
+        delete this.lastAttempt.smartplugs;
+        try {
+          this.extras.smartplugs = await this.inventory.smartplugs();
+          delete this.snap.warnings.smartplugs;
+        } catch {
+          this.snap.warnings.smartplugs =
+            "Plug state could not be verified. Refresh to check.";
+        }
+        this.updateDevices();
+        this.publish();
+      }
+      if (
+        this.snap.warnings.smartplugs ||
+        this.extras.smartplugs.find((d) => d.id === id)?.plugState !== power
+      )
+        throw new Error("Plug state could not be verified. Refresh to check.");
+      return this.snap;
+    } finally {
+      this.busy = false;
+    }
   }
   async command(action: Action, code: string, area: number) {
     if (!["arm", "partialArm", "disarm"].includes(action))

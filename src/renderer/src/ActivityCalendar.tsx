@@ -1,5 +1,4 @@
 import { DayTimeline } from "./DayTimeline";
-import { ActivityActionIcon, ActivityActor } from "./ActivityIdentity";
 import { useEffect, useRef, useState } from "react";
 import type { Device, Preferences, Snapshot } from "../../shared/model";
 import { displayDevice } from "../../shared/model";
@@ -8,7 +7,10 @@ import {
   calendarDays,
   canSelectActivityDay,
 } from "../../shared/activity-calendar";
-import { activityGroup } from "../../shared/activity-identity";
+import {
+  activityCategory,
+  matchesActivityFilter,
+} from "../../shared/activity-identity";
 import { madrid } from "../../shared/time";
 import { Icon } from "./icons";
 import { useLanguage } from "./i18n";
@@ -16,6 +18,8 @@ import { useLanguage } from "./i18n";
 const groups = [
   { id: "arming", icon: "shield", label: "Arming changes" },
   { id: "plug", icon: "plug", label: "Smart plug activity" },
+  { id: "incidents", icon: "alert", label: "Alarm events" },
+  { id: "health", icon: "battery", label: "Device & connection health" },
   { id: "other", icon: "clock", label: "Other events" },
 ] as const;
 
@@ -27,6 +31,7 @@ export function ActivityCalendar({
   selected,
   onSelectDate,
   sensorOnly,
+  filter = "all",
 }: {
   selected: string;
   onSelectDate: (day: string) => void;
@@ -34,7 +39,8 @@ export function ActivityCalendar({
   sensor?: Device;
   snap: Snapshot;
   now: number;
-  onHistory: () => void;
+  onHistory?: () => void;
+  filter?: string;
 }) {
   const { t, language } = useLanguage();
   const today = madrid(new Date(now).toISOString(), true).slice(0, 10);
@@ -49,11 +55,25 @@ export function ActivityCalendar({
       ...options,
       timeZone: "UTC",
     }).format(new Date(`${value}T12:00:00Z`));
-  const days = new Map<string, Snapshot["events"]>();
+  const days = new Map<
+    string,
+    Map<ReturnType<typeof activityCategory>, number>
+  >();
+  const monthCategories = new Set<ReturnType<typeof activityCategory>>();
   for (const event of snap.events) {
-    if (sensorOnly && sensor && event.deviceId !== sensor.id) continue;
+    if (
+      (sensorOnly && sensor && event.deviceId !== sensor.id) ||
+      !matchesActivityFilter(event, filter)
+    )
+      continue;
     const day = activityDay(event);
-    if (day && day <= today) days.set(day, [...(days.get(day) || []), event]);
+    if (!day || day > today) continue;
+    const counts =
+      days.get(day) ?? new Map<ReturnType<typeof activityCategory>, number>();
+    const category = activityCategory(event);
+    counts.set(category, (counts.get(category) ?? 0) + 1);
+    days.set(day, counts);
+    if (day.startsWith(month)) monthCategories.add(category);
   }
   useEffect(() => {
     const el = strip.current;
@@ -72,7 +92,14 @@ export function ActivityCalendar({
     date.setUTCMonth(date.getUTCMonth() + delta);
     if (date.toISOString().slice(0, 7) > currentMonth) return;
     setMonth(date.toISOString().slice(0, 7));
-    onSelectDate(date.toISOString().slice(0, 10));
+    const targetMonth = date.toISOString().slice(0, 7);
+    const available = [...days.keys()]
+      .filter((d) => d.startsWith(targetMonth))
+      .sort();
+    onSelectDate(
+      (delta < 0 ? available.at(-1) : available[0]) ??
+        date.toISOString().slice(0, 10),
+    );
   }
   return (
     <section
@@ -111,16 +138,20 @@ export function ActivityCalendar({
           {t("Today")}
         </button>
         <div className="day-legend">
-          {groups.map((group) => (
-            <span key={group.id} className={`day-kind kind-${group.id}`}>
-              <Icon name={group.icon} size={13} />
-              {t(group.label)}
-            </span>
-          ))}
+          {groups
+            .filter((group) => monthCategories.has(group.id))
+            .map((group) => (
+              <span key={group.id} className={`day-kind kind-${group.id}`}>
+                <Icon name={group.icon} size={13} />
+                {t(group.label)}
+              </span>
+            ))}
         </div>
-        <button className="strip-history" onClick={onHistory}>
-          {t("View history")} <Icon name="arrow" size={12} />
-        </button>
+        {onHistory && (
+          <button className="strip-history" onClick={onHistory}>
+            {t("View history")} <Icon name="arrow" size={12} />
+          </button>
+        )}
       </div>
       <div
         className="calendar-days"
@@ -130,12 +161,13 @@ export function ActivityCalendar({
         {calendarDays(month)
           .filter((day): day is string => !!day)
           .map((day) => {
-            const events = days.get(day) ?? [];
-            const counts = { arming: 0, plug: 0, other: 0 };
-            for (const event of events) counts[activityGroup(event)]++;
-            const present = groups.filter((group) => counts[group.id]);
+            const counts = days.get(day);
+            const total = counts
+              ? [...counts.values()].reduce((sum, n) => sum + n, 0)
+              : 0;
+            const present = groups.filter((group) => counts?.has(group.id));
             const summary = present
-              .map((group) => `${t(group.label)} (${counts[group.id]})`)
+              .map((group) => `${t(group.label)} (${counts?.get(group.id)})`)
               .join(", ");
             return (
               <button
@@ -145,7 +177,7 @@ export function ActivityCalendar({
                 className={`${days.has(day) ? "has-events" : ""} ${day === today ? "is-today" : ""}`}
                 aria-pressed={day === selected}
                 aria-current={day === today ? "date" : undefined}
-                aria-label={`${dateLabel(day, { day: "numeric", month: "long", year: "numeric" })} · ${day > today ? t("Future date") : t("{0} events", events.length)}${summary ? " · " + summary : ""}`}
+                aria-label={`${dateLabel(day, { day: "numeric", month: "long", year: "numeric" })} · ${day > today ? t("Future date") : t("{0} events", total)}${summary ? " · " + summary : ""}`}
                 onClick={() => {
                   if (canSelectActivityDay(day, now)) onSelectDate(day);
                 }}
@@ -187,11 +219,6 @@ export function ActivityDay({
   onSelectSensor: (id: string) => void;
 }) {
   const { t, language } = useLanguage();
-  const events = snap.events.filter(
-    (event) =>
-      activityDay(event) === selected &&
-      (!sensorOnly || !sensor || event.deviceId === sensor.id),
-  );
   return (
     <section className="activity-day">
       <div className="activity-day-heading">
@@ -231,43 +258,9 @@ export function ActivityDay({
         snap={snap}
         prefs={prefs}
         day={selected}
+        onSelectSensor={onSelectSensor}
         deviceId={sensorOnly ? sensor?.id : undefined}
       />
-      <div className="calendar-event-list" aria-live="polite">
-        {events.length ? (
-          events.map((event) => (
-            <article key={event.id}>
-              <ActivityActionIcon event={event} />
-              <div className="activity-event-content">
-                <div className="activity-event-heading">
-                  <strong>{t(event.description)}</strong>
-                  <time dateTime={event.time}>
-                    {event.time
-                      ? madrid(event.time)
-                      : event.localTime?.slice(11) || t("Unknown time")}
-                  </time>
-                </div>
-                <ActivityActor event={event} people={snap.keyTagPeople} />
-                {event.deviceId &&
-                  snap.devices.some((d) => d.id === event.deviceId) && (
-                    <button onClick={() => onSelectSensor(event.deviceId!)}>
-                      {displayDevice(
-                        snap.devices.find((d) => d.id === event.deviceId)!,
-                        prefs,
-                      )}{" "}
-                      <Icon name="arrow" size={12} />
-                    </button>
-                  )}
-              </div>
-            </article>
-          ))
-        ) : (
-          <div className="activity-day-empty">
-            <Icon name="clock" size={26} />
-            <h3>{t("No activity available for this day.")}</h3>
-          </div>
-        )}
-      </div>
     </section>
   );
 }

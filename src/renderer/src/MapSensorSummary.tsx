@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   alertCause,
   deviceHealth,
@@ -22,12 +23,14 @@ export function MapSensorSummary({
   prefs,
   snap,
   now,
+  plugControl,
   onDetails,
 }: {
   device: Device;
   prefs: Preferences;
   snap: Snapshot;
   now: number;
+  plugControl: ReactNode;
   onDetails: () => void;
 }) {
   const { t } = useLanguage();
@@ -68,6 +71,7 @@ export function MapSensorSummary({
                 : health,
         )}
       </span>
+      {plugControl}
       {device.alarm && <p>{t(alertCause(device))}</p>}
       {device.temperature !== undefined && (
         <div className="map-sensor-reading">
@@ -86,7 +90,7 @@ export function MapSensorSummary({
         </div>
       )}
       <dl>
-        {state !== "Not reported" && (
+        {!plugControl && state !== "Not reported" && (
           <div>
             <dt>{t("Activity")}</dt>
             <dd

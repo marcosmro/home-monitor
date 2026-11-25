@@ -1,5 +1,6 @@
-import { activityAction } from "./activity-identity";
+import { activityAction, activityCategory } from "./activity-identity";
 import type { Event, Snapshot } from "./model";
+import { activityDay } from "./activity-calendar";
 import { madrid } from "./time";
 
 const hour = 3600000;
@@ -7,17 +8,19 @@ type Action = Exclude<ReturnType<typeof activityAction>, "other">;
 export interface DayMark {
   at: number;
   event: Event;
-  action: Action;
+  action: Action | "other";
 }
 interface Change {
   at: number;
+  sequence: number;
+  inferredBoundary?: boolean;
   action?: Action;
   mark?: DayMark;
 }
 interface Track {
   id: string;
   label: string;
-  kind: "alarm" | "plug";
+  kind: "alarm" | "plug" | "events";
   changes: Change[];
 }
 
@@ -34,10 +37,13 @@ function wallInstants(wall: string) {
       normalized,
   );
 }
-export function dayTimeline(snap: Snapshot, day: string, now: number) {
-  const next = new Date(Date.parse(day + "T00:00:00Z") + 24 * hour)
+function nextDay(day: string) {
+  return new Date(Date.parse(day + "T00:00:00Z") + 24 * hour)
     .toISOString()
     .slice(0, 10);
+}
+export function dayTimeline(snap: Snapshot, day: string, now: number) {
+  const next = nextDay(day);
   const start = wallInstants(day + "T00:00:00")[0];
   const end = wallInstants(next + "T00:00:00")[0];
   const fetched = Date.parse(snap.eventsAt ?? "");
@@ -49,64 +55,128 @@ export function dayTimeline(snap: Snapshot, day: string, now: number) {
   const mainArea = snap.areas[0];
   const main = track(
     "area:" + (mainArea?.id ?? "main"),
-    "Alarm system",
+    snap.areas.length > 1 ? mainArea.name : "Alarm system",
     "alarm",
   );
   const unidentified = "plug:unknown";
+  const annexIds = new Set<number>();
+  for (const event of snap.events) {
+    if (
+      event.areaId !== undefined &&
+      event.type.toLowerCase().endsWith("annex")
+    )
+      annexIds.add(event.areaId);
+  }
+  for (const area of snap.areas) {
+    if (/^(annex|anexo)$/i.test(area.name.trim())) annexIds.add(area.id);
+  }
+  const annexId = annexIds.size === 1 ? [...annexIds][0] : undefined;
+  function eventTrack(e: Event, action: DayMark["action"]) {
+    const type = e.type.toLowerCase();
+    if (action === "other") {
+      const category = activityCategory(e);
+      if (category === "incidents")
+        return track("incidents", "Alarm events", "events");
+      if (category === "health")
+        return track("health", "Device & connection health", "events");
+      return track("other", "Other events", "events");
+    }
+    if (action === "plug-on" || action === "plug-off") {
+      return track(
+        e.deviceId ? "plug:" + e.deviceId : unidentified,
+        e.deviceId ? "Smart plug" : "Unidentified plug",
+        "plug",
+      );
+    }
+    const isAnnex = type.endsWith("annex");
+    const areaId = e.areaId ?? (isAnnex ? annexId : undefined);
+    if (areaId !== undefined) {
+      const area = snap.areas.find((a) => a.id === areaId);
+      return track(
+        "area:" + areaId,
+        area?.name || e.areaName || String(areaId),
+        "alarm",
+      );
+    }
+    if (isAnnex) return track("annex", "Annex", "alarm");
+    return snap.areas.length > 1
+      ? track("area:unknown", "Unidentified area", "alarm")
+      : main;
+  }
+
   let latest = start;
+  const unplaced: Event[] = [];
   let uncertainTimes = 0;
   const unknownPlugChanges: Change[] = [];
-  // Reverse newest-first history so a tie preserves the provider's sequence.
-  for (const e of [...snap.events].reverse()) {
+  // An undated record is still ordered between its neighbours. Use those
+  // bounds to show where the state is uncertain, without fabricating a mark.
+  let newer = Number.isFinite(fetched) ? Math.min(fetched, now) : now;
+  const records = snap.events.map((event) => {
+    const times = (
+      event.time
+        ? [Date.parse(event.time)]
+        : wallInstants(event.localTime ?? "")
+    ).filter(Number.isFinite);
+    const upper = newer;
+    if (times.length === 1) newer = times[0];
+    return { event, times, upper };
+  });
+  let older = -Infinity;
+  // Retain source order for ties, including when an anonymous plug switch
+  // invalidates the state of another track at the same instant.
+  for (let i = records.length - 1; i >= 0; i--) {
+    const { event: e, times, upper } = records[i];
     const action = activityAction(e);
-    if (action === "other") continue;
-    const times = e.time
-      ? [Date.parse(e.time)]
-      : wallInstants(e.localTime ?? "");
-    if (
-      !times.length ||
-      !Number.isFinite(times[0]) ||
-      times[0] >= end ||
-      times[0] > now
-    )
-      continue;
-    const plug = action === "plug-on" || action === "plug-off";
-    const annex = e.type.toLowerCase().endsWith("annex");
-    const area =
-      e.areaId === undefined
-        ? undefined
-        : snap.areas.find((a) => a.id === e.areaId);
-    const row = plug
-      ? track(
-          e.deviceId ? "plug:" + e.deviceId : unidentified,
-          "Unidentified plug",
-          "plug",
-        )
-      : area && area.id === mainArea?.id
-        ? main
-        : e.areaId !== undefined
-          ? track(
-              "area:" + e.areaId,
-              area?.name || e.areaName || String(e.areaId),
-              "alarm",
-            )
-          : annex
-            ? track("annex", "Annex", "alarm")
-            : snap.areas.length > 1
-              ? track("area:unknown", "Unidentified area", "alarm")
-              : main;
-    if (times.length > 1 && times[0] >= start) uncertainTimes++;
-    for (const at of times) {
-      if (at >= end || at > now) continue;
-      latest = Math.max(latest, at);
-      const change: Change = {
+    const row = eventTrack(e, action);
+    function change(
+      at: number,
+      state?: Action,
+      mark?: DayMark,
+      inferredBoundary = false,
+    ) {
+      if (at >= end || at > now) return;
+      row.changes.push({
         at,
-        action: times.length === 1 ? action : undefined,
-        mark: times.length === 1 ? { at, action, event: e } : undefined,
-      };
-      row.changes.push(change);
-      if (row.id === unidentified) unknownPlugChanges.push({ at });
+        sequence: -i,
+        action: state,
+        mark,
+        inferredBoundary,
+      });
+      if (row.id === unidentified)
+        unknownPlugChanges.push({ at, sequence: -i, inferredBoundary });
     }
+    const state = action === "other" ? undefined : action;
+    if (times.length === 1) {
+      older = times[0];
+      if (older < end && older <= now) latest = Math.max(older, latest);
+      change(older, state, { at: older, action, event: e });
+      continue;
+    }
+    const localDay = activityDay(e);
+    const lower = Math.max(
+      older,
+      times[0] ??
+        (localDay ? wallInstants(localDay + "T00:00:00")[0] : -Infinity),
+    );
+    const upperBound = Math.min(
+      upper,
+      times.at(-1) ??
+        (localDay
+          ? wallInstants(nextDay(localDay) + "T00:00:00")[0]
+          : Infinity),
+    );
+    if (
+      (localDay ? localDay === day : lower < end && upperBound >= start) &&
+      lower <= now
+    ) {
+      unplaced.push(e);
+      if (times.length > 1) uncertainTimes++;
+    }
+    if (!state || lower > upperBound) continue;
+    change(lower, undefined, undefined, true);
+    // By the newer record (or the fetch) this action has completed. A
+    // subsequent change at that same boundary wins in provider order.
+    change(upperBound, state, undefined, true);
   }
   const until = Math.min(
     now,
@@ -115,21 +185,35 @@ export function dayTimeline(snap: Snapshot, day: string, now: number) {
   );
   const rows = [...tracks.values()]
     .map((row) => {
-      const anonymous = row.id === unidentified || row.id === "area:unknown";
+      const anonymous =
+        row.kind === "events" ||
+        row.id === unidentified ||
+        row.id === "area:unknown";
       const changes = [...row.changes];
       if (row.kind === "plug" && !anonymous)
         changes.push(...unknownPlugChanges);
       if (row.kind === "alarm" && !anonymous) {
         for (const c of tracks.get("area:unknown")?.changes ?? [])
-          changes.push({ at: c.at });
+          changes.push({
+            at: c.at,
+            sequence: c.sequence,
+            inferredBoundary: c.inferredBoundary,
+          });
       }
-      changes.sort((a, b) => a.at - b.at);
+      changes.sort((a, b) => a.at - b.at || a.sequence - b.sequence);
       const segments: { from: number; to: number; action?: Action }[] = [];
       let from = start;
       let state: Action | undefined;
       const marks: DayMark[] = [];
+      let lastSequence = -Infinity;
       for (const c of changes) {
+        if (c.at > until) break;
+        // Overlapping uncertain times must not restore an earlier state
+        // after a later record may already have changed it.
+        if (c.inferredBoundary && c.sequence < lastSequence) continue;
+        lastSequence = Math.max(lastSequence, c.sequence);
         if (c.at >= start && c.mark) marks.push(c.mark);
+        if (state === c.action) continue;
         if (!anonymous && c.at > from)
           segments.push({ from, to: c.at, action: state });
         from = Math.max(start, c.at);
@@ -159,5 +243,5 @@ export function dayTimeline(snap: Snapshot, day: string, now: number) {
         : wallInstants(day + "T" + String(h).padStart(2, "0") + ":00:00")[0],
     label: String(h).padStart(2, "0") + ":00",
   }));
-  return { start, end, until, ticks, rows, uncertainTimes };
+  return { start, end, until, ticks, rows, uncertainTimes, unplaced };
 }

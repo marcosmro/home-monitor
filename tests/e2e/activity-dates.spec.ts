@@ -132,10 +132,6 @@ test("sensor activity filtering excludes future events from the selected day", a
   await expect(page.locator(".activity-day-heading h2")).toHaveText(
     "9 November 2026",
   );
-  await expect(page.locator(".calendar-event-list")).toContainText(
-    "Earlier event",
-  );
-  await expect(page.locator(".calendar-event-list")).not.toContainText(
-    "Future event",
-  );
+  await expect(page.locator(".day-change")).toContainText("Earlier event");
+  await expect(page.locator(".day-change")).not.toContainText("Future event");
 });

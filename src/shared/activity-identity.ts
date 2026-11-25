@@ -42,7 +42,7 @@ export function actorTag(
   return first.length === 1 ? first[0] : undefined;
 }
 
-export function activityAction(event: Event) {
+export function activityAction(event: Pick<Event, "type">) {
   const type = event.type.toLowerCase().replace(/[-_\s]/g, "");
   switch (type) {
     case "outputactivated":
@@ -66,8 +66,21 @@ export function activityAction(event: Event) {
       return "other";
   }
 }
-export function activityGroup(event: Event) {
+export function activityCategory(event: Event) {
   const action = activityAction(event);
   if (action === "plug-on" || action === "plug-off") return "plug";
-  return action === "other" ? "other" : "arming";
+  if (action !== "other") return "arming";
+  if (/battery|internet|mains|supervis/i.test(event.type)) return "health";
+  if (/alarm|panic|tamper/i.test(event.type)) return "incidents";
+  return "other";
+}
+
+export function matchesActivityFilter(event: Event, filter: string) {
+  if (filter === "all") return true;
+  const category = activityCategory(event);
+  return filter === "alarm"
+    ? category === "arming" ||
+        category === "incidents" ||
+        /arming_fail/i.test(event.type)
+    : category === filter;
 }

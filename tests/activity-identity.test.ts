@@ -1,6 +1,8 @@
 import { expect, test } from "vitest";
 import {
   actorTag,
+  activityCategory,
+  matchesActivityFilter,
   keyTagPeople,
   activityAction,
 } from "../src/shared/activity-identity";
@@ -41,4 +43,29 @@ test("keeps access channel separate from action and assigned tag", () => {
     "armed",
     "other",
   ]);
+});
+
+test("the calendar and timeline filters classify the same events", () => {
+  const events = logs({
+    Records: [
+      "armed",
+      "alarm_burglary_confirmed",
+      "output_deactivated",
+      "battery_low",
+      "custom",
+    ].map((EventType) => ({ EventType })),
+  });
+  expect(events.map(activityCategory)).toEqual([
+    "arming",
+    "incidents",
+    "plug",
+    "health",
+    "other",
+  ]);
+  expect(
+    events.filter((e) => matchesActivityFilter(e, "alarm")).map((e) => e.type),
+  ).toEqual(["armed", "alarm_burglary_confirmed"]);
+  expect(
+    events.filter((e) => matchesActivityFilter(e, "plug")).map((e) => e.type),
+  ).toEqual(["output_deactivated"]);
 });

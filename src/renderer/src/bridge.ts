@@ -173,6 +173,7 @@ const browser: Bridge = {
   savedLogin: unavailable,
   select: unavailable,
   logout: async () => demo.demo(),
+  setPlugPower: (...args) => demo.setPlugPower(...args),
   command: (...args) => demo.command(...args),
   reconcile: () => demo.reconcile(),
   readOnly: async (v) => demo.readOnly(v),

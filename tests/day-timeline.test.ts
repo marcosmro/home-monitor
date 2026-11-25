@@ -71,3 +71,108 @@ it("uses Madrid civil day lengths and preserves uncertainty for a repeated hour"
   expect(autumn.uncertainTimes).toBe(1);
   expect(autumn.rows[0].marks).toHaveLength(0);
 });
+
+it("resolves identified and anonymous changes in source order at the same instant", () => {
+  const time = "2026-11-24T09:00:00Z";
+  const known = ev("output_activated", time, "plug-1");
+  const unidentified = ev("output_deactivated", time);
+  function finalState(events: Event[]) {
+    return timeline(events)
+      .rows.find((row) => row.id === "plug:plug-1")!
+      .segments.at(-1)?.action;
+  }
+  expect(finalState([known, unidentified])).toBe("plug-on");
+  expect(finalState([unidentified, known])).toBeUndefined();
+});
+
+it("keeps repeated arming marks on one uninterrupted state segment", () => {
+  const row = timeline([
+    ev("armed", "2026-11-24T14:00:00Z"),
+    ev("armed", "2026-11-24T12:00:00Z"),
+    ev("armed", "2026-11-23T18:00:00Z"),
+  ]).rows[0];
+  expect(row.marks).toHaveLength(2);
+  expect(row.segments).toEqual([
+    {
+      from: at("2026-11-23T23:00:00Z"),
+      to: at("2026-11-24T17:00:00Z"),
+      action: "armed",
+    },
+  ]);
+});
+
+it("keeps qualified and unqualified annex changes on one evidenced area", () => {
+  const snap = demoSnapshot();
+  snap.areas = [
+    snap.areas[0],
+    { id: 7, name: "Garden", mode: "disarmed", partial: false },
+  ];
+  snap.events = [
+    ev("disarmedannex", "2026-11-24T10:00:00Z"),
+    { ...ev("armedannex", "2026-11-24T06:00:00Z"), areaId: 7 },
+  ];
+  const result = dayTimeline(snap, day, at("2026-11-24T16:00:00Z"));
+  expect(result.rows.map((row) => row.id)).toEqual(["area:0", "area:7"]);
+  expect(result.rows[1].marks.map((m) => m.action)).toEqual([
+    "armed",
+    "disarmed",
+  ]);
+  expect(result.rows[1].segments.map((s) => s.action)).toEqual([
+    undefined,
+    "armed",
+    "disarmed",
+  ]);
+});
+
+it("bounds a missing switch time with neighbouring records instead of continuing the old state", () => {
+  const missing = { id: "no-time", type: "disarmed", description: "Disarmed" };
+  const events = [
+    ev("battery_low", "2026-11-24T14:00:00Z"),
+    missing,
+    ev("internet_restored", "2026-11-24T12:00:00Z"),
+    ev("armed", "2026-11-23T18:00:00Z"),
+  ];
+  const result = timeline(events);
+  expect(result.rows[0].segments).toEqual([
+    { from: result.start, to: at("2026-11-24T12:00:00Z"), action: "armed" },
+    {
+      from: at("2026-11-24T12:00:00Z"),
+      to: at("2026-11-24T14:00:00Z"),
+      action: undefined,
+    },
+    { from: at("2026-11-24T14:00:00Z"), to: result.until, action: "disarmed" },
+  ]);
+  expect(result.rows[0].marks).toHaveLength(0);
+  expect(result.unplaced).toEqual([missing]);
+  expect(timeline(events, "2026-11-23").unplaced).toEqual([]);
+});
+
+it("does not restore an older state within two overlapping autumn clock changes", () => {
+  const result = timeline(
+    [
+      {
+        id: "B",
+        localTime: "2026-10-25T02:40:00",
+        type: "disarmed",
+        description: "Disarmed",
+      },
+      {
+        id: "A",
+        localTime: "2026-10-25T02:20:00",
+        type: "armed",
+        description: "Armed",
+      },
+      ev("partialarmed", "2026-10-24T21:00:00Z"),
+    ],
+    "2026-10-25",
+  );
+  expect(result.rows[0].segments).toEqual([
+    { from: result.start, to: at("2026-10-25T00:20:00Z"), action: "partial" },
+    {
+      from: at("2026-10-25T00:20:00Z"),
+      to: at("2026-10-25T01:40:00Z"),
+      action: undefined,
+    },
+    { from: at("2026-10-25T01:40:00Z"), to: result.end, action: "disarmed" },
+  ]);
+});

@@ -9,6 +9,7 @@ test("smart plugs appear in inventory and expose power and timer status", async 
 }) => {
   const snap = demoSnapshot();
   snap.demo = false;
+  snap.readOnly = true;
   snap.devices.push(
     ...smartPlugs(
       [
@@ -43,14 +44,21 @@ test("smart plugs appear in inventory and expose power and timer status", async 
   await expect(
     page.getByRole("heading", { name: "Porch lamp", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Power for Porch lamp" }),
+  ).toBeDisabled();
   await expect(page.locator(".sensor-focus-stats")).toContainText("Off");
   await expect(page.locator(".detail-panel")).toContainText("TimerOn");
   await expect(page.locator(".detail-panel")).toContainText("Indoor SmartPlug");
 });
 
-async function livePlugHome(page: import("@playwright/test").Page) {
+async function livePlugHome(
+  page: import("@playwright/test").Page,
+  readOnly = true,
+) {
   const snap = demoSnapshot();
   snap.demo = false;
+  snap.readOnly = readOnly;
   snap.devices.push(
     ...smartPlugs(
       [{ Id: "9", Label: "Porch lamp", Status: "On" }],
@@ -63,6 +71,16 @@ async function livePlugHome(page: import("@playwright/test").Page) {
       const placements: Record<string, unknown> = {};
       window.home = {
         snapshot: async () => snap,
+        setPlugPower: async (
+          panel: string,
+          id: string,
+          power: "on" | "off",
+        ) => {
+          if (panel !== snap.panelId || id !== "smartplug:9")
+            throw new Error("Wrong plug");
+          snap.devices.find((d) => d.id === id)!.plugState = power;
+          return snap;
+        },
         preferences: async () => saved,
         savePreferences: async (p: typeof prefs) => {
           saved = p;
@@ -132,4 +150,22 @@ test("placing an unassigned smart plug on the plan assigns its room", async ({
     roomRow(page, room).getByRole("button", { name: /Porch lamp/ }),
   ).toBeVisible();
   await expect(roomRow(page, "Unassigned")).toHaveCount(0);
+});
+
+test("switches the selected plug from its summary and its details", async ({
+  page,
+}) => {
+  await livePlugHome(page, false);
+  await page.getByRole("button", { name: /Porch lamp · Smart plug/ }).click();
+  const control = page.getByRole("switch", { name: "Power for Porch lamp" });
+  await expect(control).toBeChecked();
+  await control.click();
+  await expect(control).not.toBeChecked();
+  await page.getByRole("button", { name: "View details" }).click();
+  await expect(control).not.toBeChecked();
+  await control.focus();
+  await page.keyboard.press("Space");
+  await expect(control).toBeChecked();
+  await page.getByRole("tab", { name: "Sensor", exact: true }).click();
+  await expect(control).toBeChecked();
 });

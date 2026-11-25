@@ -1,5 +1,4 @@
 import { MapSensorSummary } from "./MapSensorSummary";
-import { ActivityActionIcon, ActivityActor } from "./ActivityIdentity";
 import { CameraInspector, useCameraLibrary } from "./CameraInspector";
 import { isCamera } from "../../shared/cameras";
 import { canSelectActivityDay } from "../../shared/activity-calendar";
@@ -227,6 +226,7 @@ export default function App() {
   const [command, setCommand] = useState<Action>();
   const [area, setArea] = useState(0);
   const [code, setCode] = useState("");
+  const [switchingPlug, setSwitchingPlug] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [connect, setConnect] = useState(false);
@@ -305,6 +305,8 @@ export default function App() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, []);
+  const hasPlugControls =
+    snap && !snap.demo && snap.devices.some((d) => d.type === "SmartPlug");
   async function perform(fn: () => Promise<any>) {
     if (busy) return;
     setBusy(true);
@@ -314,7 +316,14 @@ export default function App() {
       if (result?.devices) setSnap(structuredClone(result));
       return result;
     } catch (e) {
-      setError((e as Error).message);
+      setError(
+        t(
+          (e as Error).message.replace(
+            /^Error invoking remote method 'setPlugPower': Error: /,
+            "",
+          ),
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -407,6 +416,72 @@ export default function App() {
   );
   const houseAverage = averageTemperature(snap, snap.devices, now);
   const detail = selectedDevice;
+  const knownPower = detail?.plugState === "on" || detail?.plugState === "off";
+  const plugControl = detail?.type === "SmartPlug" && !snap.demo && (
+    <div className="plug-controls">
+      {knownPower ? (
+        <button
+          type="button"
+          role="switch"
+          className="plug-switch"
+          aria-label={t("Power for {0}", displayDevice(detail, prefs))}
+          aria-checked={detail.plugState === "on"}
+          disabled={
+            snap.readOnly ||
+            busy ||
+            pending ||
+            detail.offline ||
+            snap.online === false
+          }
+          onClick={() =>
+            void perform(async () => {
+              setSwitchingPlug(detail.id);
+              try {
+                return await bridge.setPlugPower(
+                  snap.panelId,
+                  detail.id,
+                  detail.plugState === "on" ? "off" : "on",
+                );
+              } finally {
+                setSwitchingPlug(undefined);
+              }
+            })
+          }
+        >
+          <span className="plug-switch-track" aria-hidden="true" />
+          <span>
+            {switchingPlug === detail.id
+              ? t("Checking plug state…")
+              : deviceIsStale(detail, snap.online, now)
+                ? t("Last known · {0}", t(deviceState(detail)))
+                : t(deviceState(detail))}
+          </span>
+        </button>
+      ) : (
+        <span>{t("Plug state unknown")}</span>
+      )}
+      {snap.readOnly && (
+        <button
+          type="button"
+          onClick={() => {
+            setSelected(undefined);
+            setView("settings");
+          }}
+        >
+          {t("Enable controls in Settings")}
+        </button>
+      )}
+      {!knownPower && !snap.readOnly && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void perform(() => bridge.refresh())}
+        >
+          {t("Refresh data")}
+        </button>
+      )}
+    </div>
+  );
   const range = temperatureRange(prefs.temperatureRange);
   const outsideRange =
     detail?.temperature !== undefined &&
@@ -433,17 +508,6 @@ export default function App() {
     ...(selectedCamera ? [["photos", "camera", "Photos"]] : []),
     ["activity", "clock", "Activity"],
   ] as Array<[typeof inspectorTab, string, string]>;
-  const visibleEvents = snap.events.filter(
-    (e) =>
-      eventFilter === "all" ||
-      (eventFilter === "alarm" && /arm|alarm/.test(e.type)) ||
-      (eventFilter === "health" &&
-        /battery|internet|mains|supervis/.test(e.type)),
-  );
-  const eventDescription = (e: Snapshot["events"][0]) => {
-    const d = snap.devices.find((d) => d.id === e.deviceId);
-    return `${t(e.description)}${d ? " · " + displayDevice(d, prefs) : ""}`;
-  };
   const welcome = snap.demo && !demoChosen;
   return (
     <div className={welcome ? "welcome" : `app ${prefs.density}`}>
@@ -1170,6 +1234,7 @@ export default function App() {
                                   </div>
                                 </div>
                               )}
+                              {plugControl}
                               <RoomAssignment
                                 device={detail}
                                 devices={snap.devices}
@@ -1532,6 +1597,7 @@ export default function App() {
                                 prefs={prefs}
                                 snap={snap}
                                 now={now}
+                                plugControl={plugControl}
                                 onDetails={() => setInspectorTab("details")}
                               />
                             )}
@@ -1593,57 +1659,56 @@ export default function App() {
                 <section className="activity-page">
                   <div className="section-heading">
                     <h2>{t("Activity history")}</h2>
-                    <label className="day-chart-date">
-                      {t("Day")}{" "}
-                      <input
-                        type="date"
-                        aria-label={t("Timeline date")}
-                        value={activityDate}
-                        max={madrid(new Date(now).toISOString(), true).slice(
-                          0,
-                          10,
-                        )}
-                        onChange={(e) => {
-                          if (canSelectActivityDay(e.target.value, now))
-                            setActivityDate(e.target.value);
-                        }}
-                      />
-                    </label>
+                    <div className="activity-controls">
+                      <label className="day-chart-date">
+                        {t("Day")}{" "}
+                        <input
+                          type="date"
+                          aria-label={t("Timeline date")}
+                          value={activityDate}
+                          max={madrid(new Date(now).toISOString(), true).slice(
+                            0,
+                            10,
+                          )}
+                          onChange={(e) => {
+                            if (canSelectActivityDay(e.target.value, now))
+                              setActivityDate(e.target.value);
+                          }}
+                        />
+                      </label>
+                      <select
+                        aria-label={t("Filter activity")}
+                        value={eventFilter}
+                        onChange={(e) => setEventFilter(e.target.value)}
+                      >
+                        <option value="all">{t("All events")}</option>
+                        <option value="alarm">{t("Alarm events")}</option>
+                        <option value="plug">{t("Smart plug activity")}</option>
+                        <option value="health">
+                          {t("Device & connection health")}
+                        </option>
+                      </select>
+                    </div>
                   </div>
-                  <DayTimeline snap={snap} prefs={prefs} day={activityDate} />
-                  <div className="section-heading">
-                    <select
-                      aria-label={t("Filter activity")}
-                      value={eventFilter}
-                      onChange={(e) => setEventFilter(e.target.value)}
-                    >
-                      <option value="all">{t("All events")}</option>
-                      <option value="alarm">{t("Alarm events")}</option>
-                      <option value="health">
-                        {t("Device & connection health")}
-                      </option>
-                    </select>
-                  </div>
-                  <p>{t("Latest 80 records")} · Europe/Madrid</p>
-                  <div className="timeline">
-                    {visibleEvents.map((e) => (
-                      <article key={e.id}>
-                        <ActivityActionIcon event={e} />
-                        <div className="activity-event-content">
-                          <div className="activity-event-heading">
-                            <h3>{eventDescription(e)}</h3>
-                            <time dateTime={e.time}>{eventTime(e)}</time>
-                          </div>
-                          <ActivityActor event={e} people={snap.keyTagPeople} />
-                        </div>
-                      </article>
-                    ))}
-                    {!visibleEvents.length && (
-                      <div className="empty">
-                        {t("No matching activity available.")}
-                      </div>
-                    )}
-                  </div>
+                  <ActivityCalendar
+                    snap={snap}
+                    now={now}
+                    selected={activityDate}
+                    onSelectDate={setActivityDate}
+                    sensorOnly={false}
+                    filter={eventFilter}
+                  />
+                  <DayTimeline
+                    snap={snap}
+                    prefs={prefs}
+                    day={activityDate}
+                    filter={eventFilter}
+                    onSelectSensor={(id) => {
+                      setSelected(id);
+                      setView("overview");
+                      setInspectorTab("details");
+                    }}
+                  />
                 </section>
               )}
               {view === "settings" && (
@@ -1722,10 +1787,18 @@ export default function App() {
                           </p>
                           <div className="alarm-controls-card">
                             <div className="alarm-controls-heading">
-                              <strong>{t("Alarm controls")}</strong>
+                              <strong>
+                                {t(
+                                  hasPlugControls
+                                    ? "Alarm and plug controls"
+                                    : "Alarm controls",
+                                )}
+                              </strong>
                               <Tooltip
                                 label={t(
-                                  "Enabling controls lets you arm, partially arm (if supported), or disarm your alarm from this app. It does not change the alarm state. Each command still requires your panel code and explicit confirmation. Disabling controls returns the app to read-only mode; it does not disarm your alarm.",
+                                  hasPlugControls
+                                    ? "Select a plug to switch it on or off. Alarm commands require your panel code and confirmation."
+                                    : "Enabling controls lets you arm, partially arm (if supported), or disarm your alarm from this app. It does not change the alarm state. Each command still requires your panel code and explicit confirmation. Disabling controls returns the app to read-only mode; it does not disarm your alarm.",
                                 )}
                               >
                                 <button
@@ -1747,15 +1820,23 @@ export default function App() {
                               />
                               {snap.readOnly
                                 ? t("Disabled · Read-only")
-                                : t("Enabled · Panel code required")}
+                                : t(
+                                    hasPlugControls
+                                      ? "Enabled"
+                                      : "Enabled · Panel code required",
+                                  )}
                             </span>
                             <p>
                               {snap.readOnly
                                 ? t(
-                                    "View your home without changing the alarm. Enable controls to arm or disarm from this app.",
+                                    hasPlugControls
+                                      ? "Enable controls to switch plugs and operate the alarm."
+                                      : "View your home without changing the alarm. Enable controls to arm or disarm from this app.",
                                   )
                                 : t(
-                                    "You can arm or disarm from the overview. Each command requires your panel code and confirmation.",
+                                    hasPlugControls
+                                      ? "Select a plug to switch it on or off. Alarm commands require your panel code and confirmation."
+                                      : "You can arm or disarm from the overview. Each command requires your panel code and confirmation.",
                                   )}
                             </p>
                             <button
@@ -1771,8 +1852,16 @@ export default function App() {
                               }
                             >
                               {snap.readOnly
-                                ? t("Enable alarm controls")
-                                : t("Disable alarm controls")}
+                                ? t(
+                                    hasPlugControls
+                                      ? "Enable alarm and plug controls"
+                                      : "Enable alarm controls",
+                                  )
+                                : t(
+                                    hasPlugControls
+                                      ? "Disable alarm and plug controls"
+                                      : "Disable alarm controls",
+                                  )}
                             </button>
                           </div>
                           <button

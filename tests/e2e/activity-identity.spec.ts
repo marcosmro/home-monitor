@@ -3,28 +3,19 @@ import { test, expect } from "@playwright/test";
 test("activity displays actor tag colors and distinct armed/disarmed icons", async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date("2026-11-09T20:00:00Z"));
   await page.goto("/");
   await page
     .getByRole("button", { name: "Start demo mode", exact: true })
     .click();
   await page.getByRole("button", { name: "Activity", exact: true }).click();
-  const armed = page
-    .locator(".timeline article")
-    .filter({ hasText: "System fully armed" });
-  const disarmed = page
-    .locator(".timeline article")
-    .filter({ hasText: "System disarmed" });
-  await expect(armed.locator(".action-armed")).toHaveCount(1);
-  await expect(
-    armed.getByRole("img", { name: "Assigned key tag: Blue" }),
-  ).toBeVisible();
-  await expect(armed).toContainText("By Marcos");
-  await expect(armed).toContainText("Via App");
-  await expect(disarmed.locator(".action-disarmed")).toHaveCount(1);
-  await expect(
-    disarmed.getByRole("img", { name: "Assigned key tag: Yellow" }),
-  ).toBeVisible();
-  await expect(disarmed).toContainText("By Ana");
+  const chart = page.locator(".day-timeline");
+  await chart.getByRole("button", { name: /System fully armed/ }).click();
+  await expect(chart.locator(".day-change")).toContainText("Via App");
+  await chart.getByRole("button", { name: /System disarmed/ }).click();
+  await expect(chart.locator(".colored-key.tag-yellow")).toBeVisible();
+  await expect(chart.locator(".day-change")).toContainText("By Ana");
+  await expect(page.locator(".timeline article")).toHaveCount(0);
   await page.screenshot({ path: "/tmp/home-activity-tags.png" });
   await page.setViewportSize({ width: 390, height: 850 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
@@ -35,7 +26,7 @@ test("activity displays actor tag colors and distinct armed/disarmed icons", asy
     .click();
   await page.locator(".calendar-days .has-events").last().click();
   await expect(
-    page.locator(".calendar-event-list .key-tag-badge").first(),
+    page.locator(".day-key-legend .key-tag-badge").first(),
   ).toBeVisible();
 });
 
@@ -70,10 +61,12 @@ test("a mixed day shows arming and plug markers and names each switch in Spanish
   );
   await expect(day.locator(".day-kind")).toHaveCount(2);
   await day.click();
-  await expect(page.locator(".calendar-event-list")).toContainText(
-    "Enchufe encendido",
-  );
-  await expect(page.locator(".calendar-event-list")).toContainText(
-    "Enchufe apagado",
-  );
+  await page.locator(".marker-plug").click();
+  const group = page.getByRole("list", { name: "2 eventos" });
+  await expect(group.getByRole("listitem")).toHaveCount(2);
+  await expect(group).toContainText("Enchufe apagado");
+  await expect(group).toContainText("Enchufe encendido");
+  await page.locator(".marker-alarm").click();
+  await expect(group).toHaveCount(0);
+  await expect(page.locator(".day-change")).toHaveCount(1);
 });

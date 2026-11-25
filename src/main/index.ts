@@ -366,6 +366,7 @@ app.whenReady().then(async () => {
       });
       return snap;
     },
+    setPlugPower: (panel, id, power) => monitor.setPlugPower(panel, id, power),
     command: (a, c, id) => monitor.command(a, c, id),
     reconcile: () => monitor.reconcile(),
     readOnly: (v) => monitor.readOnly(v),

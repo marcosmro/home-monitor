@@ -1,28 +1,7 @@
 import type { Event, KeyTagPerson } from "../../shared/model";
-import { activityAction, actorTag } from "../../shared/activity-identity";
+import { actorTag } from "../../shared/activity-identity";
 import { Icon } from "./icons";
 import { useLanguage } from "./i18n";
-
-const actionIcons = {
-  "plug-on": "plug",
-  "plug-off": "plug-off",
-  armed: "lock",
-  disarmed: "unlock",
-  partial: "shield-half",
-  other: "clock",
-};
-
-export function ActivityActionIcon({ event }: { event: Event }) {
-  const action = activityAction(event);
-  return (
-    <span
-      className={`activity-action-icon action-${action}`}
-      aria-hidden="true"
-    >
-      <Icon name={actionIcons[action]} size={17} />
-    </span>
-  );
-}
 
 export function ActivityActor({
   event,

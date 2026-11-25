@@ -198,6 +198,7 @@ export interface Bridge {
   savedLogin(): Promise<Array<{ id: string; name: string }>>;
   select(id: string): Promise<Snapshot>;
   logout(): Promise<Snapshot>;
+  setPlugPower(panel: string, id: string, power: "on" | "off"): Promise<Snapshot>;
   command(action: Action, code: string, area: number): Promise<Snapshot>;
   reconcile(): Promise<Snapshot>;
   readOnly(value: boolean): Promise<Snapshot>;

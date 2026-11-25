@@ -55,3 +55,90 @@ test("inspects keypad transitions and anonymous plug switches on a shared day ax
     390,
   );
 });
+
+test("keyboard navigation and resize preserve a single selection until a group is opened", async ({
+  page,
+}) => {
+  const snap = demoSnapshot();
+  snap.demo = false;
+  snap.eventsAt = "2026-11-19T22:00:00Z";
+  snap.events = logs({
+    Records: [
+      {
+        EventType: "armed",
+        Time: "2026-11-18T20:00:00Z",
+        User: "Marcos",
+        Channel: "App",
+      },
+      {
+        EventType: "disarmed",
+        Time: "2026-11-18T08:30:00Z",
+        User: "Ana",
+        Channel: "Keytag",
+      },
+      {
+        EventType: "armed",
+        Time: "2026-11-18T07:00:00Z",
+        User: "Marcos",
+        Channel: "Keytag",
+      },
+    ],
+  });
+  await page.addInitScript(
+    ({ snap, prefs }) => {
+      window.home = {
+        snapshot: async () => snap,
+        preferences: async () => prefs,
+        subscribe: () => () => {},
+        houseMap: async () => ({ plans: [], rooms: [], placements: {} }),
+      } as unknown as typeof window.home;
+    },
+    { snap, prefs: { ...defaults, language: "es" } },
+  );
+  await page.setViewportSize({ width: 1500, height: 960 });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Actividad", exact: true })
+    .first()
+    .click();
+  await page.getByLabel("Fecha de la cronología").fill("2026-11-18");
+  const chart = page.getByRole("region", { name: "Cronología del día" });
+  const row = chart.getByRole("group", {
+    name: "Alarma de la casa",
+    exact: true,
+  });
+  const first = row.getByRole("button", { name: /08:00.*Marcos/ });
+  const second = row.getByRole("button", { name: /09:30.*Ana/ });
+  const last = row.getByRole("button", { name: /21:00.*Marcos/ });
+  await first.focus();
+  await first.press("ArrowRight");
+  await expect(second).toBeFocused();
+  await second.press("End");
+  await expect(last).toBeFocused();
+  await last.press("Home");
+  await expect(first).toBeFocused();
+  await first.press("Enter");
+  await page.setViewportSize({ width: 390, height: 850 });
+  const cluster = row.getByRole("button", { name: /2 eventos/ });
+  await expect(cluster).toHaveAttribute("aria-expanded", "false");
+  await expect(row.getByRole("list")).toHaveCount(0);
+  await cluster.focus();
+  await cluster.press("Space");
+  const panel = row.getByRole("region", { name: /2 eventos/ });
+  await expect(panel.getByRole("listitem")).toHaveCount(2);
+  await expect(panel.getByRole("list")).toBeFocused();
+  await expect(cluster).toHaveAttribute(
+    "aria-controls",
+    (await panel.getAttribute("id"))!,
+  );
+  const close = panel.getByRole("button", { name: "Cerrar grupo de eventos" });
+  await close.focus();
+  await close.press("Escape");
+  await expect(cluster).toBeFocused();
+  await expect(cluster).toHaveAttribute("aria-expanded", "false");
+  await expect(row.locator(".day-change")).toHaveCount(0);
+  await cluster.click();
+  await close.click();
+  await expect(cluster).toBeFocused();
+  await expect(row.getByRole("list")).toHaveCount(0);
+});

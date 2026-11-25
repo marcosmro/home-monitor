@@ -103,12 +103,25 @@ export class SectorApi {
       this.renewing = undefined;
     }
   }
+  setPlugPower(panelId: string, slot: string, power: "on" | "off") {
+    const action = power === "on" ? "TurnOnSmartplug" : "TurnOffSmartplug";
+    const query = new URLSearchParams({ switchId: slot, panelId });
+    return this.request(
+      `/api/Panel/${action}?${query}`,
+      undefined,
+      true,
+      false,
+      20000,
+      "POST",
+    );
+  }
   async request(
     path: string,
     body?: unknown,
     auth = true,
     retry = true,
     timeoutMs = 20000,
+    method: "GET" | "POST" = body === undefined ? "GET" : "POST",
   ): Promise<any> {
     if (auth && (!this.token || Date.now() >= this.expires)) {
       if (!this.credentials) throw new ApiError("Sign in to reconnect.", 401);
@@ -130,7 +143,7 @@ export class SectorApi {
     let response: Response;
     try {
       response = await this.fetcher(BASE + path, {
-        method: body === undefined ? "GET" : "POST",
+        method,
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -153,7 +166,7 @@ export class SectorApi {
       this.saveMeter({ ...this.meter });
     }
     // Only GET reads may be repeated after reauthentication. Never replay a security command.
-    if (response.status === 401 && auth && retry && body === undefined) {
+    if (response.status === 401 && auth && retry && method === "GET") {
       await this.authenticate();
       return this.request(path, undefined, true, false);
     }

@@ -140,16 +140,14 @@ test("bottom day strip routes events into the activity tab without growing", asy
   // The demo's events can straddle Madrid midnight; select a day that
   // actually contains this sensor's activity after narrowing the scope.
   await page.locator(".calendar-days .has-events").first().click();
-  await expect(page.locator(".calendar-event-list article")).toHaveCount(1);
-  await expect(page.locator(".calendar-event-list")).toContainText(
-    "Low sensor battery",
-  );
+  await expect(page.locator(".day-change")).toHaveCount(1);
+  await expect(page.locator(".day-change")).toContainText("Low sensor battery");
   await page.getByRole("tab", { name: "Sensor", exact: true }).click();
   await page.getByRole("tab", { name: "Activity", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Selected sensor", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.locator(".calendar-event-list article button").click();
+  await page.locator(".day-change button").click();
   await expect(
     page.getByRole("tab", { name: "Details", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
@@ -203,7 +201,7 @@ test("filtering and responsive tabs retain inventory without page overflow", asy
   await expect(page.locator(".matrix-sensor")).toHaveCount(48);
 });
 
-test("busy days scroll inside Activity rather than stretching the workspace", async ({
+test("busy days group changes at the same hour without stretching the workspace", async ({
   page,
 }) => {
   const snap = demoSnapshot();
@@ -227,21 +225,17 @@ test("busy days scroll inside Activity rather than stretching the workspace", as
   );
   await page.goto("/");
   await page.locator(".calendar-days .is-today").click();
-  await expect(page.locator(".calendar-event-list article")).toHaveCount(240);
-  const panel = page.getByRole("tabpanel", { name: "Activity", exact: true });
-  const dimensions = await panel.evaluate((el) => ({
-    height: el.clientHeight,
-    content: el.scrollHeight,
-  }));
-  expect(dimensions.height).toBeLessThanOrEqual(790);
-  expect(dimensions.content).toBeGreaterThan(dimensions.height);
+  const cluster = page.locator(".day-marker").filter({ hasText: "240" });
+  await cluster.click();
+  const list = page.getByRole("list", { name: "240 events" });
+  await expect(list.getByRole("listitem")).toHaveCount(240);
+  await list.getByRole("listitem").last().scrollIntoViewIfNeeded();
+  await expect(list.getByRole("listitem").last()).toBeInViewport();
+  await cluster.click();
+  await expect(list).toHaveCount(0);
   expect(
     await page.evaluate(() => document.documentElement.scrollHeight),
   ).toBeLessThan(2000);
-  await panel.evaluate((el) => {
-    el.scrollTop = el.scrollHeight;
-  });
-  await expect(page.getByText("Event 240", { exact: true })).toBeInViewport();
 });
 
 test("removed search shortcut leaves the current view unchanged and Escape dismisses only the tooltip", async ({
