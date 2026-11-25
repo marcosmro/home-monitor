@@ -5,6 +5,7 @@ import type { CaptureJob, PhotoPage } from "./cameras";
 import type { PhotoChanges } from "./photo-changes";
 import type { Climate } from "./climate";
 import type { InferredOutage } from "./outages";
+export const HOURLY_REQUEST_LIMIT = 120;
 export type Mode = "armed" | "partial" | "disarmed" | "unknown";
 export type Action = "arm" | "partialArm" | "disarm";
 export type Phase =
@@ -31,7 +32,13 @@ export interface Device {
   roomEs?: string;
   roomNumber?: number;
   closed?: boolean;
+  supportsVibration?: boolean;
   alarm?: boolean;
+  alarmFetchedAt?: string;
+  alarmSource?: Device["source"];
+  chimeEnabled?: boolean;
+  batterySent?: boolean;
+  changedLocalTime?: string;
   batteryLow?: boolean;
   batteryCritical?: boolean;
   offline?: boolean;
@@ -59,7 +66,18 @@ export interface KeyTagPerson {
   firstName: string;
   color?: "black" | "blue" | "green" | "red" | "yellow";
 }
+const intrusionOutcomes = new Map([
+  ["alarmburglaryconfirmed", "Intrusion alarm confirmed by Sector Alarm"],
+  ["alarmburglarydispatched", "Emergency services dispatched for intrusion"],
+  ["alarmburglarynotconfirmed", "Intrusion unconfirmed"],
+]);
+export function intrusionOutcome(type: string) {
+  return intrusionOutcomes.get(type.replace(/[-_]/g, "").toLowerCase());
+}
+
 export interface Event {
+  areaId?: number;
+  areaName?: string;
   id: string;
   type: string;
   time?: string;
@@ -261,8 +279,17 @@ export function age(at?: string, now = Date.now()) {
     ? Math.max(0, now - Date.parse(at))
     : Infinity;
 }
+export function alertCause(d: Device) {
+  return d.type === "VibrationSensor" || d.supportsVibration
+    ? "Sector Alarm does not specify whether opening or vibration triggered this alert."
+    : "Sector Alarm does not specify what triggered this alert.";
+}
 export function deviceState(d: Device) {
-  if (d.alarm === true) return "Alarm";
+  if (d.alarm === true) {
+    if (d.closed === true) return "Contact closed · alert active";
+    if (d.closed === false) return "Contact open · alert active";
+    return "Alert active";
+  }
   if (d.offline === true) return "Last known";
   if (d.plugState)
     return d.plugState === "on"
@@ -318,8 +345,8 @@ export function deviceTone(
   d: Device,
   context: { stale?: boolean; armed?: boolean } = {},
 ): DeviceTone {
-  if (d.alarm) return "alarm";
-  if (d.offline || context.stale) return "unknown";
+  if (d.offline || (context.stale ?? d.stale)) return "unknown";
+  if (d.alarm) return d.closed === true ? "attention" : "alarm";
   if (d.closed === false && !d.plugState)
     return context.armed ? "open-armed" : "open";
   if (needsAttention(d)) return "attention";
@@ -332,4 +359,27 @@ export function deviceIsStale(
   now = Date.now(),
 ) {
   return !!d.stale || online !== true || age(d.fetchedAt, now) > 1200000;
+}
+/** Freshness of the API read that supplied the flag, independent of other inventories. */
+export function alertIsStale(d: Device, snap: Snapshot, now = Date.now()) {
+  return (
+    d.alarm === undefined ||
+    d.offline === true ||
+    snap.online !== true ||
+    !!snap.warnings.status ||
+    age(snap.statusAt, now) > 240000 ||
+    !!snap.warnings[d.alarmSource ?? d.source] ||
+    (!d.alarmSource && !!d.stale) ||
+    age(d.alarmFetchedAt ?? d.fetchedAt, now) > 1200000
+  );
+}
+
+export function deviceStateIsStale(
+  d: Device,
+  snap: Snapshot,
+  now = Date.now(),
+) {
+  return d.alarm
+    ? alertIsStale(d, snap, now)
+    : deviceIsStale(d, snap.online, now);
 }

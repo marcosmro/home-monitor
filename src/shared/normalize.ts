@@ -1,4 +1,5 @@
 import type { Device, Area, Mode, Event } from "./model";
+import { intrusionOutcome } from "./model";
 import { PLACE_NAMES, COMPONENT_NAMES } from "./places";
 import { finiteTemperature } from "./climate";
 import { instant } from "./time";
@@ -131,11 +132,14 @@ export function mountType(value: unknown): "door" | "window" | undefined {
     return "window";
   return undefined;
 }
-function mountIndex(value: unknown): number | undefined {
-  if (typeof value !== "number" && !(typeof value === "string" && value.trim()))
+function indexNumber(value: unknown): number | undefined {
+  if (
+    typeof value !== "number" &&
+    !(typeof value === "string" && /^\d+$/.test(value.trim()))
+  )
     return undefined;
   const n = Number(value);
-  return Number.isInteger(n) && n >= 0 ? n : undefined;
+  return Number.isSafeInteger(n) && n >= 0 ? n : undefined;
 }
 const genericDeviceNames = new Set([
   "contact and shock detector",
@@ -168,10 +172,17 @@ function spanishDeviceName(c: Obj, floor: Obj, room: Obj): string | undefined {
   if (name && !genericDeviceNames.has(name) && !locationOnly) return undefined;
   const mount = mountType(c.mountType);
   if (mount) {
-    const index = mountIndex(c.mountIndex);
+    const index = indexNumber(c.mountIndex);
     return `${mount === "window" ? "Ventana" : "Puerta"}${index !== undefined ? ` ${index}` : ""}`;
   }
   return COMPONENT_NAMES[c.typeName];
+}
+// Some panels return a wall-clock timestamp without a UTC offset.
+function localChange(value: unknown) {
+  return typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)
+    ? value
+    : undefined;
 }
 export function plan(
   raw: unknown,
@@ -195,13 +206,13 @@ export function plan(
             eventReference: sensorReference(
               c.typeName,
               mountType(c.mountType),
-              c.mountIndex,
+              indexNumber(c.mountIndex),
               f.translationKey,
               room.translationKey,
-              room.placeNumber,
+              indexNumber(room.placeNumber),
             ),
             mount: mountType(c.mountType),
-            mountIndex: mountIndex(c.mountIndex),
+            mountIndex: indexNumber(c.mountIndex),
             reportedMount:
               typeof c.mountType === "string" || typeof c.mountType === "number"
                 ? c.mountType
@@ -221,6 +232,11 @@ export function plan(
                 : undefined,
             closed: bool(i.closed),
             alarm: bool(i.alarm),
+            alarmFetchedAt: bool(i.alarm) !== undefined ? at : undefined,
+            alarmSource: bool(i.alarm) !== undefined ? source : undefined,
+            chimeEnabled: bool(i.chimeSettings?.enabled),
+            batterySent: bool(i.batterySent),
+            changedLocalTime: localChange(i.lastChanged),
             batteryLow: bool(i.batteryLow),
             batteryCritical: bool(i.batteryCritical),
             offline: bool(i.supervision ?? i.supervisionAlarm),
@@ -268,8 +284,27 @@ export function mergeDevices(
       roomNumber: prev.roomNumber ?? d.roomNumber,
       source: prev.source,
       closed: prev.closed ?? d.closed,
+      supportsVibration:
+        prev.supportsVibration ||
+        d.supportsVibration ||
+        prev.type === "VibrationSensor" ||
+        d.type === "VibrationSensor",
       alarm: prev.alarm ?? d.alarm,
-      changedAt: prev.changedAt ?? d.changedAt,
+      alarmSource:
+        prev.alarm !== undefined
+          ? (prev.alarmSource ?? prev.source)
+          : d.alarmSource,
+      alarmFetchedAt:
+        prev.alarm !== undefined
+          ? (prev.alarmFetchedAt ?? prev.fetchedAt)
+          : d.alarmFetchedAt,
+      changedLocalTime:
+        prev.changedAt || prev.changedLocalTime
+          ? prev.changedLocalTime
+          : d.changedLocalTime,
+      changedAt: prev.changedLocalTime
+        ? undefined
+        : (prev.changedAt ?? d.changedAt),
       fetchedAt:
         Date.parse(prev.fetchedAt) < Date.parse(d.fetchedAt)
           ? prev.fetchedAt
@@ -280,6 +315,8 @@ export function mergeDevices(
   return [...m.values()];
 }
 const descriptions: Record<string, string> = {
+  outputactivated: "Smart plug switched on",
+  outputdeactivated: "Smart plug switched off",
   armed: "System fully armed",
   partialarmed: "System partially armed",
   disarmed: "System disarmed",
@@ -301,18 +338,25 @@ export function logs(raw: unknown, devices: Device[] = []): Event[] {
     const ref = sensorReference(
       info.DeviceType,
       mountType(info.MountType),
-      info.MountIndex,
+      indexNumber(info.MountIndex),
       info.SectionKey,
       info.PlaceKey,
-      info.PlaceIndex,
+      indexNumber(info.PlaceIndex),
     );
-    const matches = ref ? devices.filter((d) => d.eventReference === ref) : [];
+    const matches = ref
+      ? new Set(
+          devices.filter((d) => d.eventReference === ref).map((d) => d.id),
+        )
+      : new Set<string>();
     return {
-      deviceId: matches.length === 1 ? matches[0].id : undefined,
+      areaId: indexNumber(obj(e.AreaInfo).Area),
+      areaName: str(obj(e.AreaInfo).AreaName) || undefined,
+      deviceId: matches.size === 1 ? matches.values().next().value : undefined,
       id: `${e.Time}-${e.EventType}-${n}`,
       type: str(e.EventType, "unknown"),
       description:
-        descriptions[str(e.EventType).toLowerCase().replace(/[-_]/g, "")] ||
+        intrusionOutcome(str(e.EventType)) ||
+        descriptions[str(e.EventType).toLowerCase().replace(/[-_\s]/g, "")] ||
         str(e.EventType, "Unrecognized event"),
       time: instant(e.Time),
       localTime:
@@ -375,7 +419,7 @@ export function legacyPlan(
       legacyCameraId: source === "cameras" ? asId(d.Id) : undefined,
       original: str(d.Label, str(d.Name, fallbackType)),
       mount: mountType(d.MountType),
-      mountIndex: mountIndex(d.MountIndex),
+      mountIndex: indexNumber(d.MountIndex),
       reportedMount:
         typeof d.MountType === "string" || typeof d.MountType === "number"
           ? d.MountType
@@ -389,6 +433,9 @@ export function legacyPlan(
       roomEs: str(room.FriendlyName, PLACE_NAMES[room.Key]),
       closed: legacyBool(d.Closed),
       alarm: legacyBool(d.Alarm),
+      alarmFetchedAt: legacyBool(d.Alarm) !== undefined ? at : undefined,
+      alarmSource: legacyBool(d.Alarm) !== undefined ? source : undefined,
+      changedLocalTime: localChange(d.LastChanged),
       batteryLow: legacyBool(d.LowBattery ?? d.BatteryLow),
       temperature:
         temperature !== undefined && Number.isFinite(temperature)

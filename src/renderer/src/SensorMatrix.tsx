@@ -1,8 +1,7 @@
 import type { Device, Preferences, Snapshot } from "../../shared/model";
 import {
-  age,
   deviceHealth,
-  deviceIsStale,
+  deviceStateIsStale,
   deviceState,
   deviceTone,
   displayDevice,
@@ -53,6 +52,11 @@ export function SensorMatrix({
     const key = roomGroupKey(d, prefs);
     rooms.set(key, [...(rooms.get(key) || []), d]);
   }
+  const toneOf = (device: Device) =>
+    deviceTone(device, {
+      stale: deviceStateIsStale(device, snap, now),
+      armed: snap.mode === "armed",
+    });
   const floorOf = (d: Device) => location(d, prefs).floor;
   // Orders cover the whole inventory, so a move made while filtering holds.
   const allFloors = floorSections(snap.devices, prefs);
@@ -124,11 +128,11 @@ export function SensorMatrix({
           </span>
           <span>
             <i className="danger" />
-            {t("Alarm / open while armed")}
+            {t("Open while armed / other sensor alert")}
           </span>
           <span>
             <i className="warm" />
-            {t("Needs attention")}
+            {t("Closed with alert / needs attention")}
           </span>
           <span>
             <i className="neutral" />
@@ -230,19 +234,18 @@ export function SensorMatrix({
                         location(items[0], prefs).room === loc.room,
                     ).length > 1;
                   const roomName = `${loc.room}${duplicates && ds[0].roomNumber !== undefined ? ` ${ds[0].roomNumber}` : ""}`;
+                  const tones = ds.map((device) => toneOf(device));
+                  const hasAlert =
+                    tones.includes("alarm") || tones.includes("open-armed");
+                  const rowTone = hasAlert
+                    ? "has-open is-alert"
+                    : tones.includes("open")
+                      ? "has-open"
+                      : tones.includes("attention")
+                        ? "has-attention"
+                        : undefined;
                   return (
-                    <tr
-                      key={key}
-                      className={
-                        ds.some(
-                          (d) =>
-                            d.alarm ||
-                            (d.closed === false && !d.offline && !d.plugState),
-                        )
-                          ? `has-open ${snap.mode === "armed" || ds.some((d) => d.alarm) ? "is-alert" : ""}`
-                          : undefined
-                      }
-                    >
+                    <tr key={key} className={rowTone}>
                       <th scope="row" className="matrix-room">
                         <button
                           className="matrix-room-link"
@@ -272,12 +275,8 @@ export function SensorMatrix({
                             (d) => {
                               const state = deviceState(d),
                                 health = deviceHealth(d);
-                              const stale =
-                                d.stale || age(d.fetchedAt, now) > 1200000;
-                              const tone = deviceTone(d, {
-                                stale: deviceIsStale(d, snap.online, now),
-                                armed: snap.mode === "armed",
-                              });
+                              const stale = deviceStateIsStale(d, snap, now);
+                              const tone = toneOf(d);
                               const hasTemperature = Number.isFinite(
                                 d.temperature,
                               );

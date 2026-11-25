@@ -44,8 +44,30 @@ export function actorTag(
 
 export function activityAction(event: Event) {
   const type = event.type.toLowerCase().replace(/[-_\s]/g, "");
-  if (type === "disarmed") return "disarmed";
-  if (type === "partialarmed" || type === "armedpartial") return "partial";
-  if (type === "armed" || type === "armedtotal") return "armed";
-  return "other";
+  switch (type) {
+    case "outputactivated":
+      return "plug-on";
+    case "outputdeactivated":
+      return "plug-off";
+    case "disarmed":
+    case "disarmedandunlock":
+    case "disarmedannex":
+      return "disarmed";
+    case "partialarmed":
+    case "armedpartial":
+    case "partialarmedandlock":
+      return "partial";
+    case "armed":
+    case "armedtotal":
+    case "armedandlock":
+    case "armedannex":
+      return "armed";
+    default:
+      return "other";
+  }
+}
+export function activityGroup(event: Event) {
+  const action = activityAction(event);
+  if (action === "plug-on" || action === "plug-off") return "plug";
+  return action === "other" ? "other" : "arming";
 }

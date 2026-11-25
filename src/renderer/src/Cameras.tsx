@@ -8,6 +8,7 @@ import {
   type Photo,
 } from "../../shared/cameras";
 import {
+  HOURLY_REQUEST_LIMIT,
   displayDevice,
   location,
   type Snapshot,
@@ -492,6 +493,7 @@ export function Cameras({
       setBusy(false);
     }
   }
+  const requestLimit = snap.requestBudget?.limit ?? HOURLY_REQUEST_LIMIT;
   const eligible = cameras.filter((d) => !d.offline && d.active !== false);
   const ready = snap.online === true && snap.mode === "armed";
   const locked = busy || job.running;
@@ -524,7 +526,7 @@ export function Cameras({
             !eligible.length ||
             (!snap.demo &&
               !snap.requestBudget?.override &&
-              snap.requests + eligible.length + 2 > 44)
+              snap.requests + eligible.length + 2 > requestLimit)
           }
           onClick={() => void capture(eligible.map((d) => d.id))}
         >
@@ -546,7 +548,7 @@ export function Cameras({
                   ? t("Local hourly cap overridden")
                   : t(
                       "{0} requests left in this app’s hourly budget",
-                      Math.max(0, 44 - snap.requests),
+                      Math.max(0, requestLimit - snap.requests),
                     ),
               )}{" "}
           {snap.readOnly &&
@@ -655,7 +657,7 @@ export function Cameras({
       )}
       {!snap.demo &&
         !snap.requestBudget?.override &&
-        snap.requests + eligible.length + 2 > 44 &&
+        snap.requests + eligible.length + 2 > requestLimit &&
         !snap.requestBudget?.localPaused && (
           <BudgetNotice snap={snap} available />
         )}
@@ -757,7 +759,7 @@ export function Cameras({
                       d.active === false ||
                       (!snap.demo &&
                         !snap.requestBudget?.override &&
-                        snap.requests + 3 > 44)
+                        snap.requests + 3 > requestLimit)
                     }
                     onClick={() => void capture([d.id])}
                   >

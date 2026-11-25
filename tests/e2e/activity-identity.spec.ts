@@ -38,3 +38,42 @@ test("activity displays actor tag colors and distinct armed/disarmed icons", asy
     page.locator(".calendar-event-list .key-tag-badge").first(),
   ).toBeVisible();
 });
+
+test("a mixed day shows arming and plug markers and names each switch in Spanish", async ({
+  page,
+}) => {
+  const { demoSnapshot } = await import("../../src/shared/demo");
+  const { defaults } = await import("../../src/shared/model");
+  const { logs } = await import("../../src/shared/normalize");
+  const snap = demoSnapshot();
+  snap.demo = false;
+  snap.events = logs({
+    Records: ["armed", "output_activated", "output_deactivated"].map(
+      (EventType) => ({ EventType, Time: snap.statusAt }),
+    ),
+  });
+  await page.addInitScript(
+    ({ snap, prefs }) => {
+      window.home = {
+        snapshot: async () => snap,
+        preferences: async () => prefs,
+        subscribe: () => () => {},
+        houseMap: async () => ({ plans: [], rooms: [], placements: {} }),
+      } as unknown as typeof window.home;
+    },
+    { snap, prefs: { ...defaults, language: "es" } },
+  );
+  await page.goto("/");
+  const day = page.locator(".calendar-days .has-events");
+  await expect(day).toHaveAccessibleName(
+    /Armado y desarmado \(1\), Enchufes \(2\)/,
+  );
+  await expect(day.locator(".day-kind")).toHaveCount(2);
+  await day.click();
+  await expect(page.locator(".calendar-event-list")).toContainText(
+    "Enchufe encendido",
+  );
+  await expect(page.locator(".calendar-event-list")).toContainText(
+    "Enchufe apagado",
+  );
+});

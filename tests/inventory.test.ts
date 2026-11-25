@@ -103,6 +103,35 @@ describe("replay of the working reference project’s synthetic raw responses", 
     expect(t.reads.some((x) => x.endsWith("/temperature"))).toBe(true);
     expect(s.devices.length).toBeGreaterThan(10);
   });
+  it("links both recorded sensor identities to their single physical detector", async () => {
+    const t = replay("00099999", (p) => {
+      const contactRoom = p.doorsPlan.areas[0].sections[0].places[0];
+      const telemetryRoom = p.temperaturePlan.areas[0].sections[0].places[0];
+      contactRoom.placeNumber = telemetryRoom.placeNumber = 7;
+      Object.assign(telemetryRoom.components[0], {
+        mountType: "WINDOW",
+        mountIndex: 1,
+      });
+      telemetryRoom.components.push(
+        structuredClone(telemetryRoom.components[0]),
+      );
+      p.logs.Records = ["MagneticContact", "VibrationSensor"].map(
+        (DeviceType) => ({
+          EventType: "alarm-burglary-confirmed",
+          SensorInformation: {
+            DeviceType,
+            MountType: "WINDOW",
+            MountIndex: "1",
+            PlaceIndex: "7",
+            SectionKey: "BASEMENT_PLACE",
+            PlaceKey: "BEDROOM_PLACE",
+          },
+        }),
+      );
+    });
+    const s = await connect(t, "00099999");
+    expect(s.events.map((event) => event.deviceId)).toEqual(["CS-01", "CS-01"]);
+  });
   it("caches endpoint-specific 404 fallback without hiding other sources", async () => {
     const t = replay("00012345");
     const reader = new InventoryReader(

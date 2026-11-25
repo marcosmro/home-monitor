@@ -5,6 +5,7 @@ import { isCamera } from "../../shared/cameras";
 import { canSelectActivityDay } from "../../shared/activity-calendar";
 import { SensorLocation } from "./SensorLocation";
 import { RoomAssignment, assignRoom } from "./RoomAssignment";
+import { DayTimeline } from "./DayTimeline";
 import { ActivityCalendar, ActivityDay } from "./ActivityCalendar";
 import { TemperatureSettings } from "./TemperatureSettings";
 import { useLanguage } from "./i18n";
@@ -19,16 +20,22 @@ import { planFloors, type MapProject } from "../../shared/house-map";
 import type { Action, Device, Preferences, Snapshot } from "../../shared/model";
 import {
   defaults,
+  HOURLY_REQUEST_LIMIT,
+  alertCause,
+  alertIsStale,
+  intrusionOutcome,
   displayDevice,
   location,
   deviceState,
   deviceHealth,
+  deviceIsStale,
   needsAttention,
   modeLabel,
   age,
   placedDevice,
   reportsNoRoom,
 } from "../../shared/model";
+import { temperatureRange } from "../../shared/temperature-scale";
 import { roomKey } from "../../shared/climate";
 import {
   averageTemperature,
@@ -38,7 +45,7 @@ import {
 } from "../../shared/climate";
 import { madrid, eventTime } from "../../shared/time";
 import { bridge } from "./bridge";
-import { Icon, deviceIcon } from "./icons";
+import { Icon, deviceIcon, typeLabel } from "./icons";
 function AverageReading({
   average,
   house = false,
@@ -372,7 +379,16 @@ export default function App() {
     snap.command.phase,
   );
   const stale = age(snap.statusAt, now) > 240000 || !!snap.warnings.status;
-  const triggered = snap.devices.some((d) => d.alarm);
+  const sensorAlerts = snap.devices.filter((d) => d.alarm);
+  const hasSensorAlert = sensorAlerts.length > 0;
+  // The history is newest-first. Even a confirmed incident is a dated record.
+  const intrusionEvent = snap.events.find((e) => intrusionOutcome(e.type));
+  const showIntrusionHistory = hasSensorAlert || !!intrusionEvent;
+  const hasFreshAlert = sensorAlerts.some((d) => !alertIsStale(d, snap, now));
+  const historyDelayed =
+    !snap.eventsAt ||
+    !!snap.warnings.events ||
+    age(snap.eventsAt, now) > 1200000;
   const open = snap.devices.filter(
     (d) => d.closed === false && !d.offline,
   ).length;
@@ -384,13 +400,33 @@ export default function App() {
   const filtered = snap.devices.filter(
     (d) =>
       filter === "all" ||
-      (filter === "open" && d.closed === false) ||
+      (filter === "open" && d.closed === false && !d.offline) ||
       (filter === "attention" && needsAttention(d)) ||
       (filter === "battery" && (d.batteryLow || d.batteryCritical)) ||
       (filter === "offline" && d.offline),
   );
   const houseAverage = averageTemperature(snap, snap.devices, now);
   const detail = selectedDevice;
+  const range = temperatureRange(prefs.temperatureRange);
+  const outsideRange =
+    detail?.temperature !== undefined &&
+    (detail.temperature < range.min || detail.temperature > range.max);
+  const oldTemperature =
+    detail?.temperature !== undefined && temperatureIsStale(detail, snap, now);
+  const oldReading =
+    detail && (detail.offline || deviceIsStale(detail, snap.online, now));
+  const openWhileArmed =
+    detail?.closed === false &&
+    !oldReading &&
+    snap.mode === "armed" &&
+    !stale &&
+    snap.online === true;
+  const sensorEvents = detail
+    ? snap.events.filter((e) => e.deviceId === detail.id)
+    : [];
+  const linkedIntrusion = sensorEvents.find((e) => intrusionOutcome(e.type));
+  const flag = (value: boolean | undefined, yes: string, no: string) =>
+    t(value === undefined ? "Not reported" : value ? yes : no);
   const inspectorTabs = [
     ["map", "layers", "Sensor"],
     ["details", "info", "Details"],
@@ -406,7 +442,7 @@ export default function App() {
   );
   const eventDescription = (e: Snapshot["events"][0]) => {
     const d = snap.devices.find((d) => d.id === e.deviceId);
-    return `${e.description}${d ? " · " + displayDevice(d, prefs) : ""}`;
+    return `${t(e.description)}${d ? " · " + displayDevice(d, prefs) : ""}`;
   };
   const welcome = snap.demo && !demoChosen;
   return (
@@ -575,38 +611,85 @@ export default function App() {
               )}
             </header>
             <section
-              className={`alarm-strip mode-${snap.mode} ${triggered ? "danger" : ""}`}
+              className={`alarm-strip mode-${snap.mode} ${hasFreshAlert ? "sensor-alert" : ""}`}
               aria-label={t("Alarm status")}
             >
               <div className="alarm-symbol">
-                <Icon name={triggered ? "alert" : "shield"} size={29} />
+                <Icon name={hasSensorAlert ? "alert" : "shield"} size={29} />
               </div>
               <div className="alarm-copy">
                 <div className="alarm-title">
-                  <h1>
-                    {triggered
-                      ? t("Sensor alarm reported")
-                      : t(modeLabel[snap.mode])}
-                  </h1>
+                  <h1>{t(modeLabel[snap.mode])}</h1>
                   {stale && (
                     <span className="pill amber">{t("Last known")}</span>
                   )}
                 </div>
-                <p>
-                  {triggered
-                    ? t(
-                        "Check the affected sensor and the official alarm service.",
+                {hasSensorAlert ? (
+                  sensorAlerts.map((d) => {
+                    const { floor, room } = location(d, prefs);
+                    const lastKnown = alertIsStale(d, snap, now);
+                    return (
+                      <p key={d.id}>
+                        <strong>{t("Sensor alert")}</strong>
+                        {" · "}
+                        <button
+                          className="alert-sensor-link"
+                          onClick={() => {
+                            setView("overview");
+                            setSelected(d.id);
+                            setFloorFocus(undefined);
+                            setRoomFocus(undefined);
+                            setInspectorTab("details");
+                            requestAnimationFrame(() =>
+                              inspectorRef.current?.scrollIntoView({
+                                block: "nearest",
+                              }),
+                            );
+                          }}
+                        >
+                          {[displayDevice(d, prefs), floor, room].join(" · ")}
+                        </button>
+                        {t(deviceState(d))}
+                        {lastKnown && <> · {t("Last known")}</>}
+                      </p>
+                    );
+                  })
+                ) : (
+                  <p>
+                    {t(
+                      snap.mode === "armed"
+                        ? "Full arming mode reported by the system."
+                        : snap.mode === "partial"
+                          ? "Partial arming mode reported by the system."
+                          : snap.mode === "disarmed"
+                            ? "The intrusion alarm is not armed."
+                            : "The current alarm mode could not be established.",
+                    )}
+                  </p>
+                )}
+                {showIntrusionHistory && (
+                  <p className="intrusion-history">
+                    {intrusionEvent ? (
+                      <>
+                        <strong>{t("Latest intrusion record")}</strong>
+                        {" · "}
+                        {t(intrusionOutcome(intrusionEvent.type)!)}
+                        {" · "}
+                        {t(eventTime(intrusionEvent))}
+                        {historyDelayed && (
+                          <> · {t("Activity could not be verified")}</>
+                        )}
+                      </>
+                    ) : historyDelayed ? (
+                      t("Activity could not be verified")
+                    ) : (
+                      t(
+                        "No intrusion record in the {0} loaded events",
+                        snap.events.length,
                       )
-                    : snap.mode === "armed"
-                      ? t("Full arming mode reported by the system.")
-                      : snap.mode === "partial"
-                        ? t("Partial arming mode reported by the system.")
-                        : snap.mode === "disarmed"
-                          ? t("The intrusion alarm is not armed.")
-                          : t(
-                              "The current alarm mode could not be established.",
-                            )}
-                </p>
+                    )}
+                  </p>
+                )}
               </div>
               <div className="connection">
                 <span
@@ -984,39 +1067,115 @@ export default function App() {
                                 {location(detail, prefs).floor} /{" "}
                                 {location(detail, prefs).room}
                               </p>
+                              {detail.alarm ? (
+                                <section
+                                  className="sensor-alert-evidence"
+                                  aria-label={t("Sensor alert")}
+                                >
+                                  <h3>
+                                    {alertIsStale(detail, snap, now)
+                                      ? t(
+                                          "Last known · {0}",
+                                          t(deviceState(detail)),
+                                        )
+                                      : t(deviceState(detail))}
+                                  </h3>
+                                  <p>{t(alertCause(detail))}</p>
+                                  <dl>
+                                    <div>
+                                      <dt>{t("Alert flag checked")}</dt>
+                                      <dd>
+                                        {t(madrid(detail.alarmFetchedAt, true))}
+                                        {detail.alarmFetchedAt && " · Madrid"}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt>{t("Alert started")}</dt>
+                                      <dd>{t("Start time unavailable")}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>{t("Monitoring centre history")}</dt>
+                                      <dd>
+                                        {linkedIntrusion
+                                          ? t(
+                                              "{0} · {1}",
+                                              t(
+                                                intrusionOutcome(
+                                                  linkedIntrusion.type,
+                                                )!,
+                                              ),
+                                              t(eventTime(linkedIntrusion)),
+                                            )
+                                          : historyDelayed
+                                            ? t(
+                                                "Activity could not be verified",
+                                              )
+                                            : t(
+                                                "No intrusion record linked to this sensor in the {0} loaded events",
+                                                snap.events.length,
+                                              )}
+                                      </dd>
+                                      {linkedIntrusion && historyDelayed && (
+                                        <dd>
+                                          {t("Activity could not be verified")}
+                                        </dd>
+                                      )}
+                                      {snap.eventsAt && (
+                                        <dd>
+                                          {t(
+                                            "History checked {0} (Madrid)",
+                                            madrid(snap.eventsAt, true),
+                                          )}
+                                        </dd>
+                                      )}
+                                    </div>
+                                  </dl>
+                                </section>
+                              ) : (
+                                <div className="sensor-focus-stats">
+                                  <div>
+                                    <span>{t("Temperature")}</span>
+                                    <strong>
+                                      {detail.temperature === undefined
+                                        ? "—"
+                                        : `${temperatureText(detail.temperature)}C`}
+                                    </strong>
+                                    <small>
+                                      {detail.temperature === undefined
+                                        ? t("Not reported")
+                                        : temperatureIsStale(detail, snap, now)
+                                          ? t("Last known")
+                                          : t("Latest reading")}
+                                    </small>
+                                  </div>
+                                  <div>
+                                    <span>
+                                      {t(
+                                        detail.closed === undefined
+                                          ? "Activity"
+                                          : "Contact position",
+                                      )}
+                                    </span>
+                                    <strong>
+                                      {detail.closed === undefined
+                                        ? t(deviceState(detail))
+                                        : flag(detail.closed, "Closed", "Open")}
+                                    </strong>
+                                    <small>
+                                      {deviceIsStale(detail, snap.online, now)
+                                        ? `${t("Last known")} · `
+                                        : ""}
+                                      {t(deviceHealth(detail))}
+                                    </small>
+                                  </div>
+                                </div>
+                              )}
                               <RoomAssignment
                                 device={detail}
                                 devices={snap.devices}
                                 prefs={prefs}
                                 onSave={save}
                               />
-                              <div className="sensor-focus-stats">
-                                <div>
-                                  <span>{t("Temperature")}</span>
-                                  <strong>
-                                    {detail.temperature === undefined
-                                      ? "—"
-                                      : `${temperatureText(detail.temperature)}C`}
-                                  </strong>
-                                  <small>
-                                    {detail.temperature === undefined
-                                      ? t("Not reported")
-                                      : temperatureIsStale(detail, snap, now)
-                                        ? t("Last known")
-                                        : t("Latest reading")}
-                                  </small>
-                                </div>
-                                <div>
-                                  <span>{t("Activity")}</span>
-                                  <strong>{t(deviceState(detail))}</strong>
-                                  <small>
-                                    {detail.stale
-                                      ? `${t("Last known")} · `
-                                      : ""}
-                                    {t(deviceHealth(detail))}
-                                  </small>
-                                </div>
-                              </div>
                               {detail.type === "SmartPlug" && (
                                 <dl className="plug-information">
                                   <div>
@@ -1047,7 +1206,11 @@ export default function App() {
                                   onControls={openCameraControls}
                                 />
                               )}
-                              <details className="sensor-information" open>
+                              <details
+                                className="sensor-information"
+                                key={detail.id}
+                                open
+                              >
                                 <summary>
                                   {t("Sensor information")}
                                   <Icon name="chevron" size={13} />
@@ -1058,7 +1221,9 @@ export default function App() {
                                       t("Temperature"),
                                       detail.temperature === undefined
                                         ? t("Not reported")
-                                        : `${temperatureText(detail.temperature)}C${temperatureIsStale(detail, snap, now) ? t(" · last known") : ""}`,
+                                        : `${temperatureText(detail.temperature)}C${outsideRange ? " · " + t("Outside display range ({0}–{1} °C)", range.min, range.max) : ""}${oldTemperature ? t(" · last known") : ""}`,
+                                      (outsideRange || oldTemperature) &&
+                                        "attention",
                                     ],
                                     [
                                       t("Temperature fetched"),
@@ -1069,7 +1234,84 @@ export default function App() {
                                         ),
                                       ),
                                     ],
-                                    [t("Activity"), t(deviceState(detail))],
+                                    [
+                                      t("Sensor alert"),
+                                      flag(
+                                        detail.alarm,
+                                        "Flag present",
+                                        "Flag clear",
+                                      ),
+                                      detail.alarm &&
+                                        (openWhileArmed
+                                          ? "critical"
+                                          : "attention"),
+                                    ],
+                                    [
+                                      t("Contact position"),
+                                      flag(detail.closed, "Closed", "Open"),
+                                      detail.closed === false &&
+                                        (openWhileArmed
+                                          ? "critical"
+                                          : "attention"),
+                                    ],
+                                    ...(detail.alarm !== undefined
+                                      ? [
+                                          [
+                                            t("Alert flag checked"),
+                                            t(
+                                              madrid(
+                                                detail.alarmFetchedAt,
+                                                true,
+                                              ),
+                                            ),
+                                            alertIsStale(detail, snap, now) &&
+                                              "attention",
+                                          ],
+                                        ]
+                                      : []),
+                                    [
+                                      t("Reading freshness"),
+                                      t(
+                                        oldReading
+                                          ? "Last known"
+                                          : "Latest reading",
+                                      ),
+                                      oldReading && "attention",
+                                    ],
+                                    ...(linkedIntrusion && !detail.alarm
+                                      ? [
+                                          [
+                                            t("Monitoring centre history"),
+                                            t(
+                                              "{0} · {1}",
+                                              t(
+                                                intrusionOutcome(
+                                                  linkedIntrusion.type,
+                                                )!,
+                                              ),
+                                              t(eventTime(linkedIntrusion)),
+                                            ),
+                                            "history",
+                                          ],
+                                        ]
+                                      : []),
+                                    ...(sensorEvents.length
+                                      ? [
+                                          [
+                                            t("Latest linked event"),
+                                            t(sensorEvents[0].description) +
+                                              " · " +
+                                              eventTime(sensorEvents[0]),
+                                            sensorEvents[0] ===
+                                              linkedIntrusion && "history",
+                                          ],
+                                        ]
+                                      : []),
+                                    [
+                                      t("Activity checked"),
+                                      t(madrid(snap.eventsAt, true)),
+                                      historyDelayed && "attention",
+                                    ],
                                     [
                                       t("Mounted on"),
                                       detail.mount
@@ -1079,19 +1321,81 @@ export default function App() {
                                     [
                                       t("Device health"),
                                       t(deviceHealth(detail)),
+                                      detail.offline || detail.batteryCritical
+                                        ? "critical"
+                                        : (detail.batteryLow ||
+                                            detail.bypass ||
+                                            detail.active === false) &&
+                                          "attention",
                                     ],
                                     [
                                       t("Battery"),
-                                      detail.batteryLow === undefined
-                                        ? t("Not reported")
-                                        : detail.batteryLow
-                                          ? t("Low")
-                                          : t("No low-battery flag"),
+                                      detail.batteryCritical
+                                        ? t("Critical battery")
+                                        : flag(
+                                            detail.batteryLow,
+                                            "Low battery",
+                                            "No low-battery flag",
+                                          ),
+                                      detail.batteryCritical
+                                        ? "critical"
+                                        : detail.batteryLow && "attention",
                                     ],
+                                    [
+                                      t("Communication fault"),
+                                      flag(
+                                        detail.offline,
+                                        "Flag present",
+                                        "Flag clear",
+                                      ),
+                                      detail.offline && "critical",
+                                    ],
+                                    [
+                                      t("Excluded from arming"),
+                                      flag(detail.bypass, "Yes", "No"),
+                                      detail.bypass && "attention",
+                                    ],
+                                    [
+                                      t("Sensor enabled"),
+                                      flag(detail.active, "Yes", "No"),
+                                      detail.active === false && "attention",
+                                    ],
+                                    ...(detail.chimeEnabled !== undefined
+                                      ? [
+                                          [
+                                            t("Opening chime"),
+                                            flag(
+                                              detail.chimeEnabled,
+                                              "On",
+                                              "Off",
+                                            ),
+                                          ],
+                                        ]
+                                      : []),
+                                    ...(detail.batterySent !== undefined
+                                      ? [
+                                          [
+                                            t("Replacement battery shipped"),
+                                            flag(
+                                              detail.batterySent,
+                                              "Yes",
+                                              "No",
+                                            ),
+                                          ],
+                                        ]
+                                      : []),
                                     [t("Tamper"), t("Not supplied by API")],
                                     [
                                       t("Last change"),
-                                      t(madrid(detail.changedAt, true)),
+                                      detail.changedLocalTime
+                                        ? t(
+                                            "{0} (offset unavailable)",
+                                            detail.changedLocalTime.replace(
+                                              "T",
+                                              " ",
+                                            ),
+                                          )
+                                        : t(madrid(detail.changedAt, true)),
                                     ],
                                     [
                                       t("Data fetched"),
@@ -1102,10 +1406,16 @@ export default function App() {
                                       t("Not supplied by API"),
                                     ],
                                     [t("Original name"), detail.original],
-                                    [t("Device type"), detail.type],
+                                    [
+                                      t("Device type"),
+                                      t(typeLabel(detail.type)),
+                                    ],
                                     [t("Stable ID"), detail.id],
-                                  ].map(([k, v]) => (
-                                    <div key={k}>
+                                  ].map(([k, v, tone]) => (
+                                    <div
+                                      key={String(k)}
+                                      data-severity={tone || undefined}
+                                    >
                                       <dt>{k}</dt>
                                       <dd
                                         className={
@@ -1115,6 +1425,16 @@ export default function App() {
                                             : undefined
                                         }
                                       >
+                                        {tone && (
+                                          <Icon
+                                            name={
+                                              tone === "history"
+                                                ? "clock"
+                                                : "alert"
+                                            }
+                                            size={13}
+                                          />
+                                        )}{" "}
                                         {v}
                                       </dd>
                                     </div>
@@ -1126,7 +1446,11 @@ export default function App() {
                                   )}
                                 </p>
                               </details>
-                              <details className="local-edit" open>
+                              <details
+                                className="local-edit"
+                                key={`names-${detail.id}`}
+                                open
+                              >
                                 <summary>
                                   {t("Local names & groups")}
                                   <small>
@@ -1269,6 +1593,25 @@ export default function App() {
                 <section className="activity-page">
                   <div className="section-heading">
                     <h2>{t("Activity history")}</h2>
+                    <label className="day-chart-date">
+                      {t("Day")}{" "}
+                      <input
+                        type="date"
+                        aria-label={t("Timeline date")}
+                        value={activityDate}
+                        max={madrid(new Date(now).toISOString(), true).slice(
+                          0,
+                          10,
+                        )}
+                        onChange={(e) => {
+                          if (canSelectActivityDay(e.target.value, now))
+                            setActivityDate(e.target.value);
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <DayTimeline snap={snap} prefs={prefs} day={activityDate} />
+                  <div className="section-heading">
                     <select
                       aria-label={t("Filter activity")}
                       value={eventFilter}
@@ -1462,7 +1805,8 @@ export default function App() {
                                   snap.requests,
                                   snap.requestBudget?.override
                                     ? t("uncapped")
-                                    : "44",
+                                    : (snap.requestBudget?.limit ??
+                                        HOURLY_REQUEST_LIMIT),
                                 )}
                           </dd>
                         </div>

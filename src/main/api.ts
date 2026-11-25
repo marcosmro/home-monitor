@@ -1,3 +1,5 @@
+import { HOURLY_REQUEST_LIMIT } from "../shared/model";
+
 export class CaptureOutcomeUnknown extends Error {}
 /** The camera answered, but without a photo: nothing was taken or saved. */
 export class EmptyCapture extends Error {}
@@ -38,9 +40,9 @@ export class SectorApi {
     const override = this.overrideHour === this.meter.hour;
     return {
       used: this.meter.used,
-      limit: 44,
+      limit: HOURLY_REQUEST_LIMIT,
       override,
-      localPaused: this.meter.used >= 44 && !override,
+      localPaused: this.meter.used >= HOURLY_REQUEST_LIMIT && !override,
       serverPaused: Date.now() < this.meter.blockedUntil,
       resetsAt: new Date((this.meter.hour + 1) * 3600000).toISOString(),
     };

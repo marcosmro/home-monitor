@@ -126,7 +126,7 @@ describe("sequential capture queue", () => {
     const m = new Monitor(
       new SectorApi({
         hour: Math.floor(Date.now() / 3600000),
-        used: 42,
+        used: 118,
         blockedUntil: 0,
       }),
       () => {},

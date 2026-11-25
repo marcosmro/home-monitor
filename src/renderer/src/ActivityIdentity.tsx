@@ -3,6 +3,15 @@ import { activityAction, actorTag } from "../../shared/activity-identity";
 import { Icon } from "./icons";
 import { useLanguage } from "./i18n";
 
+const actionIcons = {
+  "plug-on": "plug",
+  "plug-off": "plug-off",
+  armed: "lock",
+  disarmed: "unlock",
+  partial: "shield-half",
+  other: "clock",
+};
+
 export function ActivityActionIcon({ event }: { event: Event }) {
   const action = activityAction(event);
   return (
@@ -10,18 +19,7 @@ export function ActivityActionIcon({ event }: { event: Event }) {
       className={`activity-action-icon action-${action}`}
       aria-hidden="true"
     >
-      <Icon
-        name={
-          action === "armed"
-            ? "lock"
-            : action === "disarmed"
-              ? "unlock"
-              : action === "partial"
-                ? "shield-half"
-                : "clock"
-        }
-        size={17}
-      />
+      <Icon name={actionIcons[action]} size={17} />
     </span>
   );
 }

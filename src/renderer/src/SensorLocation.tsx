@@ -16,7 +16,7 @@ import {
 } from "../../shared/house-map";
 import { isCamera } from "../../shared/cameras";
 import {
-  deviceIsStale,
+  deviceStateIsStale,
   deviceState,
   deviceTone,
   displayDevice,
@@ -653,8 +653,7 @@ export function SensorLocation({
               devices={snap.devices}
               prefs={prefs}
               threeD={houseThreeD}
-              online={snap.online}
-              armed={snap.mode === "armed"}
+              snap={snap}
               onOpen={setPlanOverride}
             />
           ) : threeD ? (
@@ -669,8 +668,7 @@ export function SensorLocation({
                   ) as Record<string, MapPlacement>
                 }
                 prefs={prefs}
-                online={snap.online}
-                armed={snap.mode === "armed"}
+                snap={snap}
                 compact
                 roomId={roomId}
                 onSelect={(d) => onSelect(d.id)}
@@ -831,8 +829,12 @@ export function SensorLocation({
                     const y =
                       ((p.y * plan.height - bounds[1]) / bounds[3]) * 100;
                     if (x < 0 || x > 100 || y < 0 || y > 100) return null;
+                    const stale = deviceStateIsStale(d, snap, now);
+                    const state = stale
+                      ? t("Last known · {0}", t(deviceState(d)))
+                      : t(deviceState(d));
                     const tone = deviceTone(d, {
-                      stale: deviceIsStale(d, snap.online, now),
+                      stale,
                       armed: snap.mode === "armed",
                     });
                     return (
@@ -873,11 +875,14 @@ export function SensorLocation({
                             nudge(d, p, e.key, e.shiftKey);
                           }
                         }}
-                        aria-label={`${t("Locate {0}", displayDevice(d, prefs))}${tone === "open" || tone === "open-armed" || tone === "alarm" ? ` · ${t(deviceState(d))}` : ""}`}
+                        aria-label={`${t("Locate {0}", displayDevice(d, prefs))}${d.alarm || d.closed === false ? ` · ${state}` : ""}`}
                         aria-pressed={selected?.id === d.id}
-                        title={`${displayDevice(d, prefs)} · ${t(deviceState(d))} · ${p.confirmed ? t("Confirmed") : t("Suggested")}`}
+                        title={`${displayDevice(d, prefs)} · ${state} · ${p.confirmed ? t("Confirmed") : t("Suggested")}`}
                       >
                         <Icon name={deviceIcon(d.type)} size={12} />
+                        {tone === "attention" && (
+                          <span className="matrix-sensor-alert" aria-hidden="true">!</span>
+                        )}
                       </button>
                     );
                   })}

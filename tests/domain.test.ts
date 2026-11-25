@@ -3,6 +3,7 @@ import { state, plan, mergeDevices, logs } from "../src/shared/normalize";
 import { madrid, instant, eventTime } from "../src/shared/time";
 import { demoSnapshot } from "../src/shared/demo";
 import {
+  alertCause,
   defaults,
   displayDevice,
   location,
@@ -40,6 +41,22 @@ const raw = (info: any, name = "Custom name") => ({
   ],
 });
 describe("sensor normalization", () => {
+  it("separates contact position from the unknown trigger on a combined detector", () => {
+    const contacts = plan(
+      raw({ closed: true, alarm: true }),
+      "contacts",
+      "now",
+    );
+    const telemetry = { ...contacts[0], type: "VibrationSensor" };
+    const [device] = mergeDevices(contacts, [telemetry]);
+    expect(deviceState(device)).toBe("Contact closed · alert active");
+    expect(deviceState({ ...device, closed: false })).toBe(
+      "Contact open · alert active",
+    );
+    expect(alertCause(device)).toContain(
+      "does not specify whether opening or vibration",
+    );
+  });
   it("does not invent missing health or activity", () => {
     const d = plan(raw({}), "contacts", "2026-01-01T00:00:00Z")[0];
     expect(deviceHealth(d)).toBe("Unknown");
@@ -64,6 +81,37 @@ describe("sensor normalization", () => {
     expect(ds[0].changedAt).toBe("2026-01-01T00:00:00.000Z");
     expect(deviceHealth(ds[0])).toBe("Offline");
     expect(deviceState(ds[0])).toBe("Last known");
+  });
+  it("retains the alert reading time and offset-free change time across inventory sources", () => {
+    const contacts = plan(
+      raw({
+        closed: true,
+        alarm: true,
+        lastChanged: "2026-11-22T09:30:00",
+        chimeSettings: { enabled: false },
+      }),
+      "contacts",
+      "2026-11-23T19:10:00Z",
+    );
+    const telemetry = plan(
+      raw({
+        alarm: false,
+        lastChanged: "2026-11-23T19:12:00Z",
+        batterySent: false,
+      }),
+      "telemetry",
+      "2026-11-23T19:15:00Z",
+    );
+    const [device] = mergeDevices(contacts, telemetry);
+    expect(device).toMatchObject({
+      alarm: true,
+      closed: true,
+      alarmFetchedAt: contacts[0].fetchedAt,
+      changedLocalTime: "2026-11-22T09:30:00",
+      chimeEnabled: false,
+      batterySent: false,
+    });
+    expect(device.changedAt).toBeUndefined();
   });
   it("preserves user names and translates only documented place keys", () => {
     const d = plan(raw({}), "contacts", "now")[0];
@@ -169,6 +217,21 @@ describe("Madrid timestamps", () => {
     })[0];
     expect(e.time).toBeUndefined();
     expect(eventTime(e)).toContain("offset unavailable");
+  });
+  it("reserves intrusion confirmation for the monitoring center's confirmed burglary event", () => {
+    const types = [
+      "alarm_burglary_confirmed",
+      "alarm_burglary_not_confirmed",
+      "alarm_burglary_dispatched",
+      "output_activated",
+    ];
+    const events = logs({ Records: types.map((EventType) => ({ EventType })) });
+    expect(events.map((e) => e.description)).toEqual([
+      "Intrusion alarm confirmed by Sector Alarm",
+      "Intrusion unconfirmed",
+      "Emergency services dispatched for intrusion",
+      "Smart plug switched on",
+    ]);
   });
   it("retains unknown event types and never invents actors", () => {
     const e = logs({ Records: [{ EventType: "new_event" }] })[0];

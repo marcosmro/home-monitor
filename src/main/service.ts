@@ -188,13 +188,12 @@ export class Monitor {
         const r = await this.api.request(
           `/api/v2/panel/logs?panelId=${encodeURIComponent(this.snap.panelId)}&PageSize=80&PageNumber=1`,
         );
-        this.snap.events = logs(
-          r,
-          mergeDevices(this.contacts, [
-            ...this.telemetry,
-            ...Object.values(this.extras).flat(),
-          ]),
-        );
+        // Each inventory may describe a different function of the same sensor.
+        this.snap.events = logs(r, [
+          ...this.contacts,
+          ...this.telemetry,
+          ...Object.values(this.extras).flat(),
+        ]);
         this.snap.totalEvents =
           Number(r.TotalRecords) || this.snap.events.length;
         this.snap.eventsAt = new Date().toISOString();
@@ -278,7 +277,7 @@ export class Monitor {
     if (
       !this.snap.demo &&
       !this.api.budget.override &&
-      this.api.used + ids.length + 2 > 44
+      this.api.used + ids.length + 2 > this.api.budget.limit
     )
       throw new Error(
         "Not enough hourly budget for this batch plus state/authentication checks. Select fewer cameras or wait until the next hour.",

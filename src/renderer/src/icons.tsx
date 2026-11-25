@@ -3,6 +3,15 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
     plug: (
       <path d="M8 3v5m8-5v5M6 8h12v4a6 6 0 0 1-6 6v4m-6-14v4a6 6 0 0 0 6 6" />
     ),
+    "plug-off": (
+      <path d="m3 3 18 18M8 3v2m8-2v5m-4 0h6v4m-2 4a6 6 0 0 1-10-4V8h2m4 10v4" />
+    ),
+    keypad: (
+      <>
+        <rect x="5" y="2" width="14" height="20" rx="2" />
+        <path d="M8 6h8M8 10h2m3 0h2m-7 4h2m3 0h2m-7 4h2m3 0h2" />
+      </>
+    ),
     key: (
       <>
         <circle cx="15" cy="8" r="5" />

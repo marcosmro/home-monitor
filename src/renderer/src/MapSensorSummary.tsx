@@ -1,6 +1,7 @@
 import {
+  alertCause,
   deviceHealth,
-  deviceIsStale,
+  deviceStateIsStale,
   deviceState,
   deviceTone,
   displayDevice,
@@ -32,7 +33,7 @@ export function MapSensorSummary({
   const { t } = useLanguage();
   const health = deviceHealth(device);
   const state = deviceState(device);
-  const stale = deviceIsStale(device, snap.online, now);
+  const stale = deviceStateIsStale(device, snap, now);
   const tone = deviceTone(device, { stale, armed: snap.mode === "armed" });
   // The health pill reports the device itself; being open is not a fault.
   const healthTone =
@@ -57,8 +58,17 @@ export function MapSensorSummary({
         </p>
       )}
       <span className={`map-sensor-health ${healthTone}`}>
-        {t(stale ? "Stale" : isHealthy(device) ? "Healthy" : health)}
+        {t(
+          stale
+            ? "Last known"
+            : device.alarm
+              ? "Alert active"
+              : isHealthy(device)
+                ? "Healthy"
+                : health,
+        )}
       </span>
+      {device.alarm && <p>{t(alertCause(device))}</p>}
       {device.temperature !== undefined && (
         <div className="map-sensor-reading">
           <span>{t("Temperature")}</span>
@@ -82,12 +92,24 @@ export function MapSensorSummary({
             <dd
               className={
                 tone === "open" || tone === "open-armed" || tone === "alarm"
-                  ? `map-sensor-state ${tone}`
-                  : undefined
+                  ? `map-sensor-activity map-sensor-state ${tone}`
+                  : "map-sensor-activity"
               }
             >
-              {t(state)}
+              {stale ? t("Last known · {0}", t(state)) : t(state)}
             </dd>
+          </div>
+        )}
+        {device.alarm && device.closed !== undefined && (
+          <div>
+            <dt>{t("Contact position")}</dt>
+            <dd>{t(device.closed ? "Closed" : "Open")}</dd>
+          </div>
+        )}
+        {device.alarm && (
+          <div>
+            <dt>{t("Alert flag checked")}</dt>
+            <dd>{t(madrid(device.alarmFetchedAt, true))}</dd>
           </div>
         )}
         {stale && (

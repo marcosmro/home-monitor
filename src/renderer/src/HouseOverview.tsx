@@ -6,7 +6,12 @@ import {
   type HouseMapData,
   type MapPlacement,
 } from "../../shared/house-map";
-import type { Device, Preferences } from "../../shared/model";
+import {
+  deviceIsStale,
+  type Device,
+  type Preferences,
+  type Snapshot,
+} from "../../shared/model";
 import { PlanDrawing } from "./PlanDrawing";
 import { HouseModel3D } from "./HouseModel3D";
 import { sensorCount, useLanguage } from "./i18n";
@@ -29,8 +34,7 @@ export function HouseOverview({
   devices = [],
   prefs,
   threeD,
-  online,
-  armed,
+  snap,
   onOpen,
 }: {
   name: string;
@@ -39,8 +43,7 @@ export function HouseOverview({
   devices?: Device[];
   prefs: Preferences;
   threeD: boolean;
-  online?: boolean;
-  armed?: boolean;
+  snap: Snapshot;
   onOpen: (planId: string) => void;
 }) {
   const { t } = useLanguage();
@@ -72,7 +75,7 @@ export function HouseOverview({
           devices={[]}
           places={{}}
           prefs={prefs}
-          online={online}
+          snap={snap}
           compact
           onSelect={() => {}}
         />
@@ -108,7 +111,11 @@ export function HouseOverview({
         // Counted like the sensor list: every sensor of the plan's floors.
         const count = entry.devices.length;
         const open = entry.devices.filter(
-          (d) => d.closed === false && !d.offline && !d.plugState,
+          (d) =>
+            d.closed === false &&
+            !d.offline &&
+            !deviceIsStale(d, snap.online) &&
+            !d.plugState,
         ).length;
         return (
           <button
@@ -129,7 +136,9 @@ export function HouseOverview({
             <small>
               {sensorCount(count, t)}
               {open > 0 && (
-                <span className={`house-plan-open ${armed ? "is-alert" : ""}`}>
+                <span
+                  className={`house-plan-open ${snap.mode === "armed" ? "is-alert" : ""}`}
+                >
                   {" · "}
                   {open} {t("open")}
                 </span>

@@ -2,10 +2,16 @@ import { it, expect, vi, afterEach } from "vitest";
 import { SectorApi } from "../src/main/api";
 const meter = () => ({
   hour: Math.floor(Date.now() / 3600000),
-  used: 44,
+  used: 120,
   blockedUntil: 0,
 });
 afterEach(() => vi.useRealTimers());
+it("allows the 120th request before pausing", async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response("{}"));
+  const api = new SectorApi({ ...meter(), used: 119 }, () => {}, fetcher);
+  await api.request("/read", undefined, false);
+  expect(api.budget).toMatchObject({ used: 120, limit: 120, localPaused: true });
+});
 it("blocks by default, permits an explicit override, and keeps counting", async () => {
   const m = meter(),
     fetcher = vi.fn().mockResolvedValue(new Response("{}"));
@@ -16,7 +22,7 @@ it("blocks by default, permits an explicit override, and keeps counting", async 
   expect(fetcher).not.toHaveBeenCalled();
   api.setBudgetOverride(true);
   await api.request("/read", undefined, false);
-  expect(api.used).toBe(45);
+  expect(api.used).toBe(121);
   api.setBudgetOverride(false);
   await expect(api.request("/read", undefined, false)).rejects.toThrow(
     "budget paused",

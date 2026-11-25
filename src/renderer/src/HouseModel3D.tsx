@@ -11,9 +11,9 @@ import {
 import type { MapPlan, MapPlacement } from "../../shared/house-map";
 import {
   deviceState,
-  deviceHealth,
   displayDevice,
-  deviceIsStale,
+  deviceStateIsStale,
+  type Snapshot,
   deviceTone,
   type Device,
   type Preferences,
@@ -25,8 +25,7 @@ export function HouseModel3D({
   places,
   prefs,
   onSelect,
-  online,
-  armed,
+  snap,
   compact = false,
   roomId,
 }: {
@@ -37,9 +36,7 @@ export function HouseModel3D({
   places: Record<string, MapPlacement | null>;
   prefs: Preferences;
   onSelect: (d: Device) => void;
-  online?: boolean;
-  /** Fully armed: an open contact then shows as red rather than orange. */
-  armed?: boolean;
+  snap: Snapshot;
   /** Side-panel layout: the geometry notes and cross-checks fold away. */
   compact?: boolean;
 }) {
@@ -325,9 +322,13 @@ export function HouseModel3D({
                     z + 0.1,
                     py / metres + Math.sin(heading) * 1.3,
                   ]);
+            const stale = deviceStateIsStale(d, snap);
+            const state = stale
+              ? t("Last known · {0}", t(deviceState(d)))
+              : t(deviceState(d));
             const tone = deviceTone(d, {
-              stale: deviceIsStale(d, online),
-              armed,
+              stale,
+              armed: snap.mode === "armed",
             });
             return (
               <g
@@ -335,7 +336,7 @@ export function HouseModel3D({
                 className={`model-sensor ${tone}`}
                 role="button"
                 tabIndex={0}
-                aria-label={`${displayDevice(d, prefs)}, ${t(deviceState(d))}`}
+                aria-label={`${displayDevice(d, prefs)}, ${state}`}
                 onClick={() => onSelect(d)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -345,7 +346,7 @@ export function HouseModel3D({
                 }}
               >
                 <title>
-                  {displayDevice(d, prefs)} · {deviceState(d)} {t("· position")}{" "}
+                  {displayDevice(d, prefs)} · {state} {t("· position")}{" "}
                   {p.confirmed ? "confirmed" : "suggested"}
                 </title>
                 {end && (
@@ -402,7 +403,7 @@ export function HouseModel3D({
         </label>
       </div>
       {compact ? (
-        <details className="model-about">
+        <details className="model-about" open>
           <summary>{t("About this model")}</summary>
           {notes}
         </details>

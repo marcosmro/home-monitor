@@ -53,11 +53,13 @@ export function BudgetNotice({
               )
             : budget.override
               ? t(
-                  "The 44-request cap returns at {0} Madrid or when the app restarts. Requests are still counted.",
+                  "The {0}-request cap returns at {1} Madrid or when the app restarts. Requests are still counted.",
+                  budget.limit,
                   madrid(budget.resetsAt),
                 )
               : t(
-                  "You can temporarily exceed the app’s 44-request cap. This may consume the allowance shared with your mobile app.",
+                  "You can temporarily exceed the app’s {0}-request cap. This may consume the allowance shared with your mobile app.",
+                  budget.limit,
                 )}
         </p>
         {error && <p role="alert">{error}</p>}

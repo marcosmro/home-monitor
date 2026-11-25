@@ -1,3 +1,4 @@
+import { DayTimeline } from "./DayTimeline";
 import { ActivityActionIcon, ActivityActor } from "./ActivityIdentity";
 import { useEffect, useRef, useState } from "react";
 import type { Device, Preferences, Snapshot } from "../../shared/model";
@@ -7,9 +8,16 @@ import {
   calendarDays,
   canSelectActivityDay,
 } from "../../shared/activity-calendar";
+import { activityGroup } from "../../shared/activity-identity";
 import { madrid } from "../../shared/time";
 import { Icon } from "./icons";
 import { useLanguage } from "./i18n";
+
+const groups = [
+  { id: "arming", icon: "shield", label: "Arming changes" },
+  { id: "plug", icon: "plug", label: "Smart plug activity" },
+  { id: "other", icon: "clock", label: "Other events" },
+] as const;
 
 export function ActivityCalendar({
   snap,
@@ -102,6 +110,14 @@ export function ActivityCalendar({
         >
           {t("Today")}
         </button>
+        <div className="day-legend">
+          {groups.map((group) => (
+            <span key={group.id} className={`day-kind kind-${group.id}`}>
+              <Icon name={group.icon} size={13} />
+              {t(group.label)}
+            </span>
+          ))}
+        </div>
         <button className="strip-history" onClick={onHistory}>
           {t("View history")} <Icon name="arrow" size={12} />
         </button>
@@ -113,23 +129,41 @@ export function ActivityCalendar({
       >
         {calendarDays(month)
           .filter((day): day is string => !!day)
-          .map((day) => (
-            <button
-              key={day}
-              disabled={day > today}
-              title={day > today ? t("Future date") : undefined}
-              className={`${days.has(day) ? "has-events" : ""} ${day === today ? "is-today" : ""}`}
-              aria-pressed={day === selected}
-              aria-current={day === today ? "date" : undefined}
-              aria-label={`${dateLabel(day, { day: "numeric", month: "long", year: "numeric" })} · ${day > today ? t("Future date") : t("{0} events", days.get(day)?.length || 0)}`}
-              onClick={() => {
-                if (canSelectActivityDay(day, now)) onSelectDate(day);
-              }}
-            >
-              <span>{Number(day.slice(-2))}</span>
-              <i aria-hidden="true" />
-            </button>
-          ))}
+          .map((day) => {
+            const events = days.get(day) ?? [];
+            const counts = { arming: 0, plug: 0, other: 0 };
+            for (const event of events) counts[activityGroup(event)]++;
+            const present = groups.filter((group) => counts[group.id]);
+            const summary = present
+              .map((group) => `${t(group.label)} (${counts[group.id]})`)
+              .join(", ");
+            return (
+              <button
+                key={day}
+                disabled={day > today}
+                title={day > today ? t("Future date") : summary || undefined}
+                className={`${days.has(day) ? "has-events" : ""} ${day === today ? "is-today" : ""}`}
+                aria-pressed={day === selected}
+                aria-current={day === today ? "date" : undefined}
+                aria-label={`${dateLabel(day, { day: "numeric", month: "long", year: "numeric" })} · ${day > today ? t("Future date") : t("{0} events", events.length)}${summary ? " · " + summary : ""}`}
+                onClick={() => {
+                  if (canSelectActivityDay(day, now)) onSelectDate(day);
+                }}
+              >
+                <span>{Number(day.slice(-2))}</span>
+                <span className="day-markers" aria-hidden="true">
+                  {present.map((group) => (
+                    <span
+                      key={group.id}
+                      className={`day-kind kind-${group.id}`}
+                    >
+                      <Icon name={group.icon} size={11} />
+                    </span>
+                  ))}
+                </span>
+              </button>
+            );
+          })}
       </div>
     </section>
   );
@@ -193,6 +227,12 @@ export function ActivityDay({
           {displayDevice(sensor, prefs)} · {t("Only explicitly linked events")}
         </p>
       )}
+      <DayTimeline
+        snap={snap}
+        prefs={prefs}
+        day={selected}
+        deviceId={sensorOnly ? sensor?.id : undefined}
+      />
       <div className="calendar-event-list" aria-live="polite">
         {events.length ? (
           events.map((event) => (

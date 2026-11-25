@@ -25,13 +25,20 @@ describe("sensor colour tone", () => {
     );
     expect(deviceTone(device({ batteryLow: true }))).toBe("attention");
   });
-  it("escalates an open contact while fully armed, and an alarm above all", () => {
+  it("marks a closed contact with an alert for attention", () => {
+    expect(deviceTone(device({ alarm: true }), { armed: true })).toBe(
+      "attention",
+    );
+  });
+  it("escalates an open contact while fully armed or reporting an alert", () => {
     expect(deviceTone(device({ closed: false }), { armed: true })).toBe(
       "open-armed",
     );
     expect(deviceTone(device({ closed: false, alarm: true }))).toBe("alarm");
   });
   it("does not trust a stale or offline reading", () => {
+    expect(deviceTone(device({ alarm: true, stale: true }))).toBe("unknown");
+    expect(deviceTone(device({ alarm: true, offline: true }))).toBe("unknown");
     expect(deviceTone(device({ closed: false }), { stale: true })).toBe(
       "unknown",
     );
